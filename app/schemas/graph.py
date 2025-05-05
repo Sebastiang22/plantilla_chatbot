@@ -19,6 +19,11 @@ class GraphState(BaseModel):
         default_factory=list, description="The messages in the conversation"
     )
     session_id: str = Field(..., description="The unique identifier for the conversation session")
+    client_name: str = Field(..., description="The name of the client in the conversation")
+    last_node: str = Field(
+        default="start",
+        description="The last node where the conversation was processed"
+    )
 
     @field_validator("session_id")
     @classmethod

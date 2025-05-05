@@ -128,7 +128,6 @@ class LangGraphAgent:
         Returns:
             dict: Updated state with new messages.
         """
-        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT)
 
         llm_calls_num = 0
 
@@ -137,7 +136,9 @@ class LangGraphAgent:
 
         for attempt in range(max_retries):
             try:
-                generated_state = {"messages": [await self.llm.ainvoke(dump_messages(messages))]}
+                import pdb
+                pdb.set_trace()
+                generated_state = {"messages": [await self.llm.ainvoke(dump_messages(   ))]}
                 logger.info(
                     "llm_response_generated",
                     session_id=state.session_id,
@@ -191,14 +192,14 @@ class LangGraphAgent:
             )
         return {"messages": outputs}
 
-    def _should_continue(self, state: GraphState) -> Literal["end", "continue"]:
+    def _router(self, state: GraphState) -> Literal["end", "tool_node"]:
         """Determine if the agent should continue or end based on the last message.
 
         Args:
             state: The current agent state containing messages.
 
         Returns:
-            Literal["end", "continue"]: "end" if there are no tool calls, "continue" otherwise.
+            Literal["end", "tool_node"]: "end" if there are no tool calls, "tool_node" otherwise.
         """
         messages = state.messages
         last_message = messages[-1]
@@ -207,7 +208,7 @@ class LangGraphAgent:
             return "end"
         # Otherwise if there is, we continue
         else:
-            return "continue"
+            return "tool_node"
 
     async def create_graph(self) -> Optional[CompiledStateGraph]:
         """Create and configure the LangGraph workflow.
@@ -222,8 +223,8 @@ class LangGraphAgent:
                 graph_builder.add_node("tool_call", self._tool_call)
                 graph_builder.add_conditional_edges(
                     "chat",
-                    self._should_continue,
-                    {"continue": "tool_call", "end": END},
+                    self._router,
+                    {"tool_node": "tool_call", "end": END},
                 )
                 graph_builder.add_edge("tool_call", "chat")
                 graph_builder.set_entry_point("chat")
