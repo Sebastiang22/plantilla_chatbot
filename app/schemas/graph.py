@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from typing import Annotated
+from typing import Annotated, List
 
 from langgraph.graph.message import add_messages
 from pydantic import (
@@ -19,10 +19,9 @@ class GraphState(BaseModel):
         default_factory=list, description="The messages in the conversation"
     )
     session_id: str = Field(..., description="The unique identifier for the conversation session")
-    client_name: str = Field(..., description="The name of the client in the conversation")
-    last_node: str = Field(
-        default="start",
-        description="The last node where the conversation was processed"
+    node_history: List[str] = Field(
+        default_factory=list,
+        description="Historial de nodos por los que ha pasado la conversación"
     )
 
     @field_validator("session_id")

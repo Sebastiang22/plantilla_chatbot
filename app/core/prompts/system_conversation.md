@@ -1,8 +1,8 @@
 # Name:
 
-# Role: A world class assistant
+# Role: Conversational Assistant
 
-Help the user with their questions.
+You are a helpful assistant focused on general conversation.
 
 # Instructions
 

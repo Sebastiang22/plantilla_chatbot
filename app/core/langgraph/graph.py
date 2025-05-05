@@ -6,6 +6,8 @@ from typing import (
     Dict,
     Literal,
     Optional,
+    TypedDict,
+    List,
 )
 
 from asgiref.sync import sync_to_async
@@ -20,6 +22,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import (
     END,
     StateGraph,
+    START,
 )
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import StateSnapshot
@@ -31,9 +34,15 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import tools
+from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools
 from core.logging import logger
-from core.prompts import SYSTEM_PROMPT
+from core.prompts import (
+    SYSTEM_PROMPT_CONVERSATION,
+    SYSTEM_PROMPT_ORDER_DATA,
+    SYSTEM_PROMPT_UPDATE_ORDER,
+    SYSTEM_PROMPT_PQRS,
+    SYSTEM_PROMPT_ORCHESTRATOR,
+)
 from schemas import (
     GraphState,
     Message,
@@ -42,6 +51,15 @@ from utils import (
     dump_messages,
     prepare_messages,
 )
+
+
+class OrchestratorState(TypedDict):
+    """
+    Estado compartido en el grafo, contiene los mensajes, la intención detectada y el historial de agentes.
+    """
+    messages: List[Any]
+    intent: Optional[str]
+    agent_history: List[str]
 
 
 class LangGraphAgent:
@@ -53,17 +71,22 @@ class LangGraphAgent:
 
     def __init__(self):
         """Initialize the LangGraph Agent with necessary components."""
-        # Use environment-specific LLM model
         self.llm = ChatOpenAI(
             model=settings.LLM_MODEL,
             temperature=settings.DEFAULT_LLM_TEMPERATURE,
             api_key=settings.LLM_API_KEY,
             max_tokens=settings.MAX_TOKENS,
             **self._get_model_kwargs(),
-        ).bind_tools(tools)
+        )
         self.tools_by_name = {tool.name: tool for tool in tools}
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
+        self.agent_tools = {
+            "conversation_agent": [get_menu_tool,duckduckgo_search_tool],
+            "order_data_agent": [],
+            "update_order_agent": [],
+            "pqrs_agent": [],
+        }
 
         logger.info("llm_initialized", model=settings.LLM_MODEL, environment=settings.ENVIRONMENT.value)
 
@@ -182,6 +205,7 @@ class LangGraphAgent:
         """
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
+            print(f"\033[94m[tool] {tool_call['name']}\033[0m")
             tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
             outputs.append(
                 ToolMessage(
@@ -210,25 +234,135 @@ class LangGraphAgent:
         else:
             return "tool_node"
 
-    async def create_graph(self) -> Optional[CompiledStateGraph]:
-        """Create and configure the LangGraph workflow.
-
-        Returns:
-            Optional[CompiledStateGraph]: The configured LangGraph instance or None if init fails
+    async def _orchestrator(self, state: GraphState) -> GraphState:
         """
+        Nodo orquestador que detecta la intención del mensaje del usuario usando el LLM y redirige al agente adecuado.
+        """
+        print("\033[92m[orchestrator]\033[0m")
+        # Tomar el último mensaje del usuario
+        messages = state.messages
+        last_message = messages[-1]
+        # Preparar el prompt para el LLM
+        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORCHESTRATOR)
+
+        # Invocar el modelo para obtener la intención
+        response = await self.llm.ainvoke(dump_messages(messages))
+        print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+        intent = response.content.strip()
+        print(f"\033[96m[orchestrator intent detected]: {intent}\033[0m")
+        if intent == "order_data_agent":
+            state.node_history.append("order_data_agent")
+        else:
+            state.node_history.append("conversation_agent")
+        return state
+
+    async def conversation_agent(self, state: GraphState) -> GraphState:
+        """
+        Agente especializado en conversación general.
+        """
+        print("\033[92m[conversation_agent]\033[0m")
+        print(f"\033[92m{state.node_history}\033[0m")
+
+        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
+        llm_with_tools = self.llm.bind_tools(self.agent_tools["conversation_agent"])
+        ai_message = await llm_with_tools.ainvoke(dump_messages(messages))
+        state.messages.append(ai_message)
+        state.node_history.append("conversation_agent")
+
+        return state
+
+    async def order_data_agent(self, state: GraphState) -> dict:
+        """
+        Agente especializado en obtención de datos de pedido.
+        """
+        print("\033[92m[order_data_agent]\033[0m")
+        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
+        llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
+        generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}
+        logger.info(
+            "llm_response_generated",
+            session_id=state.session_id,
+            model=settings.LLM_MODEL,
+            environment=settings.ENVIRONMENT.value,
+        )
+        state.node_history.append("order_data_agent")
+
+        return generated_state
+
+    async def update_order_agent(self, state: GraphState) -> dict:
+        """
+        Agente especializado en actualización de pedidos.
+        """
+        print("\033[92m[update_order_agent]\033[0m")
+        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_UPDATE_ORDER)
+        llm_with_tools = self.llm.bind_tools(self.agent_tools["update_order_agent"])
+        generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}
+        logger.info(
+            "llm_response_generated",
+            session_id=state.session_id,
+            model=settings.LLM_MODEL,
+            environment=settings.ENVIRONMENT.value,
+        )
+        return generated_state
+
+    async def pqrs_agent(self, state: GraphState) -> dict:
+        """
+        Agente especializado en gestión de PQRS.
+        """
+        print("\033[92m[pqrs_agent]\033[0m")
+        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_PQRS)
+        llm_with_tools = self.llm.bind_tools(self.agent_tools["pqrs_agent"])
+        generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}
+        logger.info(
+            "llm_response_generated",
+            session_id=state.session_id,
+            model=settings.LLM_MODEL,
+            environment=settings.ENVIRONMENT.value,
+        )
+        return generated_state
+
+    def route_by_intent(self, state: GraphState) -> str:
+        """
+        Determina el siguiente agente especializado según la intención detectada por el orquestador.
+        """
+        return state.node_history[-1] if state.node_history else "conversation_agent"
+
+    async def create_graph(self) -> Optional[CompiledStateGraph]:
+        """Create and configure the LangGraph workflow con orquestador y agentes especializados."""
         if self._graph is None:
             try:
                 graph_builder = StateGraph(GraphState)
-                graph_builder.add_node("chat", self._chat)
+                graph_builder.add_node("orchestrator", self._orchestrator)
+                graph_builder.add_node("conversation_agent", self.conversation_agent)
+                graph_builder.add_node("order_data_agent", self.order_data_agent)
+                graph_builder.add_node("update_order_agent", self.update_order_agent)
+                graph_builder.add_node("pqrs_agent", self.pqrs_agent)
                 graph_builder.add_node("tool_call", self._tool_call)
+
+                # Nodo de entrada
+                graph_builder.set_entry_point("orchestrator")
+
+                # Transición del orquestador al agente adecuado
                 graph_builder.add_conditional_edges(
-                    "chat",
+                    "orchestrator",
+                    self.route_by_intent,
+                    {
+                        "conversation_agent": "conversation_agent",
+                        "order_data_agent": "order_data_agent",
+                        "update_order_agent": "update_order_agent",
+                        "pqrs_agent": "pqrs_agent",
+                    }
+                )
+
+                # Solo conversation_agent puede terminar o llamar tools (para pruebas)
+                graph_builder.add_conditional_edges(
+                    "conversation_agent",
                     self._router,
                     {"tool_node": "tool_call", "end": END},
                 )
-                graph_builder.add_edge("tool_call", "chat")
-                graph_builder.set_entry_point("chat")
-                graph_builder.set_finish_point("chat")
+                graph_builder.add_edge("tool_call", "conversation_agent")
+
+                graph_builder.set_finish_point("conversation_agent")
 
                 # Get connection pool (may be None in production if DB unavailable)
                 connection_pool = await self._get_connection_pool()
@@ -236,7 +370,6 @@ class LangGraphAgent:
                     checkpointer = AsyncPostgresSaver(connection_pool)
                     await checkpointer.setup()
                 else:
-                    # In production, proceed without checkpointer if needed
                     checkpointer = None
                     if settings.ENVIRONMENT != Environment.PRODUCTION:
                         raise Exception("Connection pool initialization failed")
@@ -253,7 +386,6 @@ class LangGraphAgent:
                 )
             except Exception as e:
                 logger.error("graph_creation_failed", error=str(e), environment=settings.ENVIRONMENT.value)
-                # In production, we don't want to crash the app
                 if settings.ENVIRONMENT == Environment.PRODUCTION:
                     logger.warning("continuing_without_graph")
                     return None
@@ -292,7 +424,12 @@ class LangGraphAgent:
         }
         try:
             response = await self._graph.ainvoke(
-                {"messages": dump_messages(messages), "session_id": session_id}, config
+                {
+                    "messages": dump_messages(messages),
+                    "session_id": session_id,
+                    "last_node": "conversation_agent",  # Valor por defecto para evitar error de validación
+                },
+                config
             )
             return self.__process_messages(response["messages"])
         except Exception as e:
