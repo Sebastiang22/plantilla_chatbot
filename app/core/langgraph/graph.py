@@ -276,6 +276,7 @@ class LangGraphAgent:
         Agente especializado en obtención de datos de pedido.
         """
         print("\033[92m[order_data_agent]\033[0m")
+        print(f"\033[92m{state.node_history}\033[0m")
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
         generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}

@@ -159,6 +159,26 @@ class InventoryService:
                 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error al eliminar el producto: {str(e)}")
+    
+    async def get_menu_products(self) -> list[dict]:
+        """
+        Obtiene todos los productos del menú con los campos name, description, price y category.
+        
+        Returns:
+            list[dict]: Lista de productos con los campos requeridos.
+        """
+        with Session(self.db.engine) as session:
+            statement = select(Product)
+            products = session.exec(statement).all()
+            return [
+                {
+                    "name": p.name,
+                    "description": p.description,
+                    "price": p.price,
+                    "category": p.category,
+                }
+                for p in products
+            ]
 
 # Crear una instancia singleton del servicio
 inventory_service = InventoryService() 

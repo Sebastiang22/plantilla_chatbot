@@ -1,31 +1,24 @@
 """Herramienta para obtener el menú de un restaurante de comidas rápidas."""
 
 from langchain_core.tools import tool
+from services.inventory_service import InventoryService
+import asyncio
 
 @tool
 def get_menu() -> dict:
     """
-    Devuelve el menú de un restaurante de comidas rápidas para pruebas.
-    El menú incluye hamburguesas, papas, bebidas y combos.
+    Obtiene el menú de productos desde la base de datos, organizado por categorías.
+    Retorna un diccionario con las categorías como claves y listas de productos como valores.
     """
-    return {
-        "burgers": [
-            {"name": "Hamburguesa Clásica", "price": 5.99},
-            {"name": "Hamburguesa con Queso", "price": 6.49},
-            {"name": "Hamburguesa Doble", "price": 7.99},
-        ],
-        "fries": [
-            {"name": "Papas Pequeñas", "price": 2.49},
-            {"name": "Papas Medianas", "price": 2.99},
-            {"name": "Papas Grandes", "price": 3.49},
-        ],
-        "drinks": [
-            {"name": "Gaseosa", "price": 1.99},
-            {"name": "Jugo", "price": 2.49},
-            {"name": "Agua", "price": 1.49},
-        ],
-        "combos": [
-            {"name": "Combo Clásico", "items": ["Hamburguesa Clásica", "Papas Medianas", "Gaseosa"], "price": 9.99},
-            {"name": "Combo Queso", "items": ["Hamburguesa con Queso", "Papas Grandes", "Jugo"], "price": 11.49},
-        ]
-    } 
+    inventory_service = InventoryService()
+    products = asyncio.run(inventory_service.get_menu_products())
+    
+    # Organizar productos por categoría
+    menu_by_category = {}
+    for product in products:
+        category = product["category"]
+        if category not in menu_by_category:
+            menu_by_category[category] = []
+        menu_by_category[category].append(product)
+    
+    return menu_by_category
