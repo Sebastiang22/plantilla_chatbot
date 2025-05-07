@@ -20,16 +20,18 @@ class OrderService:
         """Inicializa el servicio de pedidos."""
         self.db = database_service
     
-    async def create_order(self, customer_id: str, items: List[Dict[str, Any]]) -> Order:
-        """Crea un nuevo pedido con sus items.
+    async def create_order(self, customer_id: str, product_name: str, quantity: int, unit_price: float, subtotal: float) -> Order:
+        """Crea un nuevo pedido con un item.
         
         Args:
             customer_id: ID del cliente
-            items: Lista de items del pedido, cada item debe contener:
-                  product_id, product_name, quantity, unit_price
+            product_name: Nombre del producto
+            quantity: Cantidad del producto
+            unit_price: Precio unitario del producto
+            subtotal: Subtotal del item (quantity * unit_price)
                   
         Returns:
-            Order: El pedido creado con sus items
+            Order: El pedido creado con su item
             
         Raises:
             HTTPException: Si hay un error al crear el pedido
@@ -41,22 +43,19 @@ class OrderService:
                 session.add(order)
                 session.flush()  # Para obtener el ID del pedido
                 
-                # Crear los items del pedido
-                total_amount = 0
-                for item in items:
-                    order_item = OrderItem(
-                        order_id=order.id,
-                        product_id=item["product_id"],
-                        product_name=item["product_name"],
-                        quantity=item["quantity"],
-                        unit_price=item["unit_price"],
-                        subtotal=item["quantity"] * item["unit_price"]
-                    )
-                    total_amount += order_item.subtotal
-                    session.add(order_item)
+                # Crear el item del pedido
+                order_item = OrderItem(
+                    order_id=order.id,
+                    product_id="",  # No tenemos el ID del producto, solo el nombre
+                    product_name=product_name,
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    subtotal=subtotal
+                )
+                session.add(order_item)
                 
                 # Actualizar el monto total del pedido
-                order.total_amount = total_amount
+                order.total_amount = subtotal
                 session.add(order)
                 
                 session.commit()

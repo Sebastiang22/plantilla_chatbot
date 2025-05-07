@@ -4,6 +4,7 @@ import re
 from typing import (
     List,
     Literal,
+    Optional,
 )
 
 from pydantic import (
@@ -95,3 +96,12 @@ class StreamResponse(BaseModel):
 
     content: str = Field(default="", description="The content of the current chunk")
     done: bool = Field(default=False, description="Whether the stream is complete")
+
+
+class ThreadResponse(BaseModel):
+    """Schema para la respuesta de creación de un nuevo thread.
+    
+    Attributes:
+        thread_id: ID único del nuevo thread creado
+    """
+    thread_id: str

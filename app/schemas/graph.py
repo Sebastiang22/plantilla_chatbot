@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 
 from langgraph.graph.message import add_messages
 from pydantic import (
@@ -23,6 +23,7 @@ class GraphState(BaseModel):
         default_factory=list,
         description="Historial de nodos por los que ha pasado la conversación"
     )
+    phone: Optional[str] = None
 
     @field_validator("session_id")
     @classmethod

@@ -14,7 +14,7 @@ from core.config import settings
 from core.langgraph.graph import LangGraphAgent
 from core.limiter import limiter
 from core.logging import logger
-from schemas.chat import ChatRequest, ChatResponse, Message, StreamResponse, MessageResponse
+from schemas.chat import ChatRequest, ChatResponse, Message, StreamResponse, MessageResponse, ThreadResponse
 from services.database import database_service
 
 router = APIRouter()
@@ -78,15 +78,15 @@ async def chat(
     phone: str,
 ):
     """Procesa una solicitud de chat usando LangGraph.
-    
+
     Args:
         request: Objeto de solicitud FastAPI para limitación de tasa
         chat_request: Solicitud de chat que contiene mensajes
         phone: Número de celular del usuario
-        
+
     Returns:
         MessageResponse: Respuesta con solo el contenido del mensaje
-        
+
     Raises:
         HTTPException: Si hay un error al procesar la solicitud
     """
@@ -106,7 +106,11 @@ async def chat(
         )
 
         # Procesar la solicitud a través de LangGraph
-        result = await agent.get_response(chat_request.messages, thread.id)
+        result = await agent.get_response(
+            messages=chat_request.messages,
+            session_id=thread.id,
+            initial_state={"phone": phone}
+        )
 
         logger.info("chat_request_processed", thread_id=thread.id)
 
@@ -133,15 +137,15 @@ async def chat_stream(
     phone: str,
 ):
     """Procesa una solicitud de chat usando LangGraph con respuesta en streaming.
-    
+
     Args:
         request: Objeto de solicitud FastAPI para limitación de tasa
         chat_request: Solicitud de chat que contiene mensajes
         phone: Número de celular del usuario
-        
+
     Returns:
         StreamingResponse: Respuesta en streaming del chat
-        
+
     Raises:
         HTTPException: Si hay un error al procesar la solicitud
     """
@@ -162,10 +166,10 @@ async def chat_stream(
 
         async def event_generator():
             """Genera eventos de streaming.
-            
+
             Yields:
                 str: Eventos del servidor en formato JSON
-                
+
             Raises:
                 Exception: Si hay un error durante el streaming
             """
@@ -203,5 +207,50 @@ async def chat_stream(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/thread/new", response_model=ThreadResponse)
+@limiter.limit(settings.RATE_LIMIT_ENDPOINTS["chat"][0])
+async def create_new_thread(
+    request: Request,
+    phone: str,
+):
+    """Crea un nuevo thread para un usuario y reinicia el checkpointer del grafo.
+
+    Args:
+        request: Objeto de solicitud FastAPI para limitación de tasa
+        phone: Número de celular del usuario
+
+    Returns:
+        ThreadResponse: Respuesta con el ID del nuevo thread
+
+    Raises:
+        HTTPException: Si hay un error al procesar la solicitud
+    """
+    try:
+        # Obtener o crear usuario
+        user = await get_or_create_user(phone)
+        
+        # Crear nuevo thread con ID único
+        thread_id = str(uuid.uuid4())
+        thread = await database_service.create_thread(thread_id, user.id)
+        
+        # Limpiar el historial del checkpointer para el thread anterior
+        try:
+            await agent.clear_chat_history(thread_id)
+            logger.info("chat_history_cleared", thread_id=thread_id)
+        except Exception as e:
+            logger.warning("failed_to_clear_chat_history", thread_id=thread_id, error=str(e))
+        
+        logger.info(
+            "new_thread_created",
+            thread_id=thread.id,
+            user_id=user.id,
+        )
+
+        return ThreadResponse(thread_id=thread.id)
+
+    except Exception as e:
+        logger.error("new_thread_creation_failed", phone=phone, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error al crear nuevo thread: {str(e)}")
 
 

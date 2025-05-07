@@ -202,6 +202,13 @@ class LangGraphAgent:
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
             print(f"\033[94m[tool] Ejecutando: {tool_call['name']} con args: {tool_call['args']}\033[0m")
+            # Add state to the tool arguments if the tool is confirm_product
+            if tool_call["name"] == "confirm_product":
+                # Get phone from the state dictionary
+                phone = state.phone
+                if not phone:
+                    raise ValueError("Phone number is required for confirm_product tool")
+                tool_call["args"]["state"] = {"phone": phone}
             tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
             outputs.append(
                 ToolMessage(
@@ -270,7 +277,17 @@ class LangGraphAgent:
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
-        generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}
+        response_msg = await llm_with_tools.ainvoke(dump_messages(messages))
+        
+        # Verificar y procesar llamadas a herramientas
+        if hasattr(response_msg, 'tool_calls') and response_msg.tool_calls:
+            for tool_call in response_msg.tool_calls:
+                if tool_call["name"] == "confirm_product":
+                    print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
+                    arguments = tool_call["args"]
+                    arguments["phone"] = state.phone
+        
+        generated_state = {"messages": [response_msg]}
         logger.info(
             "llm_response_generated",
             session_id=state.session_id,
@@ -412,14 +429,14 @@ class LangGraphAgent:
         self,
         messages: list[Message],
         session_id: str,
-        user_id: Optional[str] = None,
+        initial_state: Optional[dict] = None,
     ) -> list[dict]:
         """Get a response from the LLM.
 
         Args:
             messages (list[Message]): The messages to send to the LLM.
             session_id (str): The session ID for Langfuse tracking.
-            user_id (Optional[str]): The user ID for Langfuse tracking.
+            initial_state (Optional[dict]): Initial state to be passed to the graph.
 
         Returns:
             list[dict]: The response from the LLM.
@@ -432,20 +449,22 @@ class LangGraphAgent:
                 CallbackHandler(
                     environment=settings.ENVIRONMENT.value,
                     debug=False,
-                    user_id=user_id,
                     session_id=session_id,
                 )
             ],
         }
         try:
-            response = await self._graph.ainvoke(
-                {
-                    "messages": dump_messages(messages),
-                    "session_id": session_id,
-                    "last_node": "conversation_agent",  # Valor por defecto para evitar error de validación
-                },
-                config
-            )
+            # Prepare initial state
+            state = {
+                "messages": dump_messages(messages),
+                "session_id": session_id,
+                "last_node": "conversation_agent",  # Valor por defecto para evitar error de validación
+            }
+            # Add any additional state from initial_state
+            if initial_state:
+                state.update(initial_state)
+
+            response = await self._graph.ainvoke(state, config)
             return self.__process_messages(response["messages"])
         except Exception as e:
             logger.error(f"Error getting response: {str(e)}")

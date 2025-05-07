@@ -56,10 +56,11 @@ class DatabaseService:
                 if settings.ENVIRONMENT == Environment.DEVELOPMENT:
                     SQLModel.metadata.drop_all(self.engine)
                 
-                # Create all tables
-                SQLModel.metadata.create_all(self.engine)
+            # Create all tables
+            SQLModel.metadata.create_all(self.engine)
                 
-                # Verify tables exist
+            # Verify tables exist
+            with Session(self.engine) as session:
                 session.exec(select(1)).first()
 
             logger.info(

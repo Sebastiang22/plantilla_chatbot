@@ -6,7 +6,7 @@ import asyncio
 
 @tool
 def confirm_product(
-    customer_id: str,
+    phone: str,
     product_name: str,
     quantity: int,
     unit_price: float,
@@ -16,7 +16,7 @@ def confirm_product(
     Confirma un producto en la base de datos creando un nuevo pedido.
     
     Args:
-        customer_id: ID del cliente que realiza el pedido
+        phone: Teléfono del usuario
         product_name: Nombre del producto
         quantity: Cantidad del producto
         unit_price: Precio unitario del producto
@@ -28,7 +28,7 @@ def confirm_product(
     order_service = OrderService()
     order = asyncio.run(
         order_service.create_order(
-            customer_id=customer_id,
+            customer_id=phone,
             product_name=product_name,
             quantity=quantity,
             unit_price=unit_price,

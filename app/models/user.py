@@ -6,7 +6,7 @@ from models.base import BaseModel
 
 class User(BaseModel, table=True):
     """Modelo de usuario para almacenar cuentas de usuarios.
-    
+
     Attributes:
         id: Clave primaria
         name: Nombre del usuario
@@ -15,7 +15,7 @@ class User(BaseModel, table=True):
     """
     
     __tablename__ = "user"  # Explicitly set table name
-    
+
     id: int = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     phone: str = Field(unique=True, index=True)
