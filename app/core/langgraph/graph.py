@@ -34,7 +34,7 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools
+from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product
 from core.logging import logger
 from core.prompts import (
     SYSTEM_PROMPT_CONVERSATION,
@@ -83,7 +83,7 @@ class LangGraphAgent:
         self._graph: Optional[CompiledStateGraph] = None
         self.agent_tools = {
             "conversation_agent": [get_menu_tool,duckduckgo_search_tool],
-            "order_data_agent": [],
+            "order_data_agent": [confirm_product,get_menu_tool],
             "update_order_agent": [],
             "pqrs_agent": [],
         }
@@ -195,50 +195,46 @@ class LangGraphAgent:
 
     # Define our tool node
     async def _tool_call(self, state: GraphState) -> GraphState:
-        """Process tool calls from the last message.
-
-        Args:
-            state: The current agent state containing messages and tool calls.
-
-        Returns:
-            Dict with updated messages containing tool responses.
         """
+        Procesa las llamadas a herramientas desde el último mensaje.
+        """
+        print("\033[94m[_tool_call] Procesando llamada a herramienta\033[0m")
+        print(f"\033[94mMensajes actuales: {state.messages}\033[0m")
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
-            print(f"\033[94m[tool] {tool_call['name']}\033[0m")
+            print(f"\033[94m[tool] Ejecutando: {tool_call['name']} con args: {tool_call['args']}\033[0m")
             tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
             outputs.append(
                 ToolMessage(
-                    content=tool_result,
+                    content=str(tool_result),
                     name=tool_call["name"],
                     tool_call_id=tool_call["id"],
                 )
             )
+        print("\033[94m[_tool_call] Respuesta de la herramienta generada\033[0m")
         return {"messages": outputs}
 
     def _router(self, state: GraphState) -> Literal["end", "tool_node"]:
-        """Determine if the agent should continue or end based on the last message.
-
-        Args:
-            state: The current agent state containing messages.
-
-        Returns:
-            Literal["end", "tool_node"]: "end" if there are no tool calls, "tool_node" otherwise.
         """
+        Determina si el agente debe continuar o finalizar según el último mensaje.
+        """
+        print("\033[93m[_router] Decidiendo siguiente paso\033[0m")
         messages = state.messages
         last_message = messages[-1]
-        # If there is no function call, then we finish
+        print(f"\033[93m[_router] Último mensaje: {last_message}\033[0m")
         if not last_message.tool_calls:
+            print("\033[93m[_router] No hay tool_calls, retornando 'end'\033[0m")
             return "end"
-        # Otherwise if there is, we continue
         else:
+            print("\033[93m[_router] Hay tool_calls, retornando 'tool_node'\033[0m")
             return "tool_node"
 
     async def _orchestrator(self, state: GraphState) -> GraphState:
         """
         Nodo orquestador que detecta la intención del mensaje del usuario usando el LLM y redirige al agente adecuado.
         """
-        print("\033[92m[orchestrator]\033[0m")
+        print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
+        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         # Tomar el último mensaje del usuario
         messages = state.messages
         last_message = messages[-1]
@@ -260,7 +256,8 @@ class LangGraphAgent:
         """
         Agente especializado en conversación general.
         """
-        print("\033[92m[conversation_agent]\033[0m")
+        print("\033[92m[conversation_agent] Entrando al agente de conversación\033[0m")
+        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         print(f"\033[92m{state.node_history}\033[0m")
 
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
@@ -275,7 +272,8 @@ class LangGraphAgent:
         """
         Agente especializado en obtención de datos de pedido.
         """
-        print("\033[92m[order_data_agent]\033[0m")
+        print("\033[92m[order_data_agent] Entrando al agente de datos de pedido\033[0m")
+        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         print(f"\033[92m{state.node_history}\033[0m")
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
@@ -328,23 +326,35 @@ class LangGraphAgent:
         """
         return state.node_history[-1] if state.node_history else "conversation_agent"
 
+    async def _conversation_tool_call(self, state: GraphState) -> GraphState:
+        """Process tool calls from the conversation agent."""
+        return await self._tool_call(state)
+
+    async def _order_data_tool_call(self, state: GraphState) -> GraphState:
+        """Process tool calls from the order data agent."""
+        return await self._tool_call(state)
+
     async def create_graph(self) -> Optional[CompiledStateGraph]:
         """Create and configure the LangGraph workflow con orquestador y agentes especializados."""
         if self._graph is None:
             try:
-                graph_builder = StateGraph(GraphState)
-                graph_builder.add_node("orchestrator", self._orchestrator)
-                graph_builder.add_node("conversation_agent", self.conversation_agent)
-                graph_builder.add_node("order_data_agent", self.order_data_agent)
-                graph_builder.add_node("update_order_agent", self.update_order_agent)
-                graph_builder.add_node("pqrs_agent", self.pqrs_agent)
-                graph_builder.add_node("tool_call", self._tool_call)
+                builder = StateGraph(GraphState)
+                # Nodos principales
+                builder.add_node("orchestrator", self._orchestrator)
+                builder.add_node("conversation_agent", self.conversation_agent)
+                builder.add_node("order_data_agent", self.order_data_agent)
+                builder.add_node("update_order_agent", self.update_order_agent)
+                builder.add_node("pqrs_agent", self.pqrs_agent)
+
+                # Nodos de herramienta específicos
+                builder.add_node("conversation_tool_call", self._conversation_tool_call)
+                builder.add_node("order_data_tool_call", self._order_data_tool_call)
 
                 # Nodo de entrada
-                graph_builder.set_entry_point("orchestrator")
+                builder.set_entry_point("orchestrator")
 
-                # Transición del orquestador al agente adecuado
-                graph_builder.add_conditional_edges(
+                # Enrutamiento del orquestador
+                builder.add_conditional_edges(
                     "orchestrator",
                     self.route_by_intent,
                     {
@@ -352,18 +362,28 @@ class LangGraphAgent:
                         "order_data_agent": "order_data_agent",
                         "update_order_agent": "update_order_agent",
                         "pqrs_agent": "pqrs_agent",
-                    }
+                    },
                 )
 
-                # Solo conversation_agent puede terminar o llamar tools (para pruebas)
-                graph_builder.add_conditional_edges(
+                # conversation_agent <-> conversation_tool_call
+                builder.add_conditional_edges(
                     "conversation_agent",
                     self._router,
-                    {"tool_node": "tool_call", "end": END},
+                    {"tool_node": "conversation_tool_call", "end": END},
                 )
-                graph_builder.add_edge("tool_call", "conversation_agent")
+                builder.add_edge("conversation_tool_call", "conversation_agent")
 
-                graph_builder.set_finish_point("conversation_agent")
+                # order_data_agent <-> order_data_tool_call
+                builder.add_conditional_edges(
+                    "order_data_agent",
+                    self._router,
+                    {"tool_node": "order_data_tool_call", "end": END},
+                )
+                builder.add_edge("order_data_tool_call", "order_data_agent")
+
+                # Configurar puntos de finalización para cada agente
+                builder.set_finish_point("conversation_agent")
+                builder.set_finish_point("order_data_agent")
 
                 # Get connection pool (may be None in production if DB unavailable)
                 connection_pool = await self._get_connection_pool()
@@ -375,8 +395,9 @@ class LangGraphAgent:
                     if settings.ENVIRONMENT != Environment.PRODUCTION:
                         raise Exception("Connection pool initialization failed")
 
-                self._graph = graph_builder.compile(
-                    checkpointer=checkpointer, name=f"{settings.PROJECT_NAME} Agent ({settings.ENVIRONMENT.value})"
+                self._graph = builder.compile(
+                    checkpointer=checkpointer,
+                    name=f"{settings.PROJECT_NAME} Agent ({settings.ENVIRONMENT.value})",
                 )
 
                 logger.info(
