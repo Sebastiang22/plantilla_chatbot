@@ -18,7 +18,6 @@ from core.logging import logger
 from schemas.auth import Token
 from utils.sanitization import sanitize_string
 
-
 def create_access_token(thread_id: str, expires_delta: Optional[timedelta] = None) -> Token:
     """Create a new access token for a thread.
 

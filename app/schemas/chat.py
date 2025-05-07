@@ -75,6 +75,16 @@ class ChatResponse(BaseModel):
     messages: List[Message] = Field(..., description="List of messages in the conversation")
 
 
+class MessageResponse(BaseModel):
+    """Response model for chat endpoint that returns only the message content.
+
+    Attributes:
+        content: The content of the assistant's response.
+    """
+
+    content: str = Field(..., description="The content of the assistant's response")
+
+
 class StreamResponse(BaseModel):
     """Response model for streaming chat endpoint.
 

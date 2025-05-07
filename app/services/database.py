@@ -20,8 +20,8 @@ from core.config import (
     settings,
 )
 from core.logging import logger
-from models.session import Session as ChatSession
 from models.user import User
+from models.thread import Thread
 
 
 class DatabaseService:
@@ -47,10 +47,20 @@ class DatabaseService:
                 max_overflow=max_overflow,
                 pool_timeout=30,  # Connection timeout (seconds)
                 pool_recycle=1800,  # Recycle connections after 30 minutes
+                echo=True,  # Enable SQL query logging
             )
 
             # Create tables (only if they don't exist)
-            SQLModel.metadata.create_all(self.engine)
+            with Session(self.engine) as session:
+                # Drop all tables first (only in development)
+                if settings.ENVIRONMENT == Environment.DEVELOPMENT:
+                    SQLModel.metadata.drop_all(self.engine)
+                
+                # Create all tables
+                SQLModel.metadata.create_all(self.engine)
+                
+                # Verify tables exist
+                session.exec(select(1)).first()
 
             logger.info(
                 "database_initialized",
@@ -64,140 +74,75 @@ class DatabaseService:
             if settings.ENVIRONMENT != Environment.PRODUCTION:
                 raise
 
-    async def create_user(self, email: str, password: str) -> User:
+
+    async def get_user_by_phone(self, phone: str) -> Optional[User]:
+        """Get a user by phone.
+
+        Args:
+            phone: The phone of the user to retrieve
+
+        Returns:
+            Optional[User]: The user if found, None otherwise
+        """
+        with Session(self.engine) as session:
+            statement = select(User).where(User.phone == phone)
+            user = session.exec(statement).first()
+            return user
+
+    async def create_user(self, name: str, phone: str) -> User:
         """Create a new user.
 
         Args:
-            email: User's email address
-            password: Hashed password
+            name: User's name
+            phone: User's phone number
 
         Returns:
             User: The created user
         """
         with Session(self.engine) as session:
-            user = User(email=email, hashed_password=password)
+            user = User(name=name, phone=phone)
             session.add(user)
             session.commit()
             session.refresh(user)
-            logger.info("user_created", email=email)
+            logger.info("user_created", phone=phone)
             return user
 
-    async def get_user(self, user_id: int) -> Optional[User]:
-        """Get a user by ID.
-
-        Args:
-            user_id: The ID of the user to retrieve
-
-        Returns:
-            Optional[User]: The user if found, None otherwise
-        """
-        with Session(self.engine) as session:
-            user = session.get(User, user_id)
-            return user
-
-    async def get_user_by_email(self, email: str) -> Optional[User]:
-        """Get a user by email.
-
-        Args:
-            email: The email of the user to retrieve
-
-        Returns:
-            Optional[User]: The user if found, None otherwise
-        """
-        with Session(self.engine) as session:
-            statement = select(User).where(User.email == email)
-            user = session.exec(statement).first()
-            return user
-
-    async def delete_user_by_email(self, email: str) -> bool:
-        """Delete a user by email.
-
-        Args:
-            email: The email of the user to delete
-
-        Returns:
-            bool: True if deletion was successful, False if user not found
-        """
-        with Session(self.engine) as session:
-            user = session.exec(select(User).where(User.email == email)).first()
-            if not user:
-                return False
-
-            session.delete(user)
-            session.commit()
-            logger.info("user_deleted", email=email)
-            return True
-
-    async def create_session(self, session_id: str, user_id: int, name: str = "") -> ChatSession:
-        """Create a new chat session.
-
-        Args:
-            session_id: The ID for the new session
-            user_id: The ID of the user who owns the session
-            name: Optional name for the session (defaults to empty string)
-
-        Returns:
-            ChatSession: The created session
-        """
-        with Session(self.engine) as session:
-            chat_session = ChatSession(id=session_id, user_id=user_id, name=name)
-            session.add(chat_session)
-            session.commit()
-            session.refresh(chat_session)
-            logger.info("session_created", session_id=session_id, user_id=user_id, name=name)
-            return chat_session
-
-    async def get_session(self, session_id: str) -> Optional[ChatSession]:
-        """Get a session by ID.
-
-        Args:
-            session_id: The ID of the session to retrieve
-
-        Returns:
-            Optional[ChatSession]: The session if found, None otherwise
-        """
-        with Session(self.engine) as session:
-            chat_session = session.get(ChatSession, session_id)
-            return chat_session
-
-    async def get_user_sessions(self, user_id: int) -> List[ChatSession]:
-        """Get all sessions for a user.
+    async def get_latest_thread(self, user_id: int) -> Optional[Thread]:
+        """Get the latest thread for a user.
 
         Args:
             user_id: The ID of the user
 
         Returns:
-            List[ChatSession]: List of user's sessions
+            Optional[Thread]: The latest thread if exists, None otherwise
         """
         with Session(self.engine) as session:
-            statement = select(ChatSession).where(ChatSession.user_id == user_id).order_by(ChatSession.created_at)
-            sessions = session.exec(statement).all()
-            return sessions
+            statement = (
+                select(Thread)
+                .where(Thread.user_id == user_id)
+                .order_by(Thread.created_at.desc())
+                .limit(1)
+            )
+            thread = session.exec(statement).first()
+            return thread
 
-    async def update_session_name(self, session_id: str, name: str) -> ChatSession:
-        """Update a session's name.
+    async def create_thread(self, thread_id: str, user_id: int) -> Thread:
+        """Create a new thread.
 
         Args:
-            session_id: The ID of the session to update
-            name: The new name for the session
+            thread_id: The ID for the new thread
+            user_id: The ID of the user who owns the thread
 
         Returns:
-            ChatSession: The updated session
-
-        Raises:
-            HTTPException: If session is not found
+            Thread: The created thread
         """
         with Session(self.engine) as session:
-            chat_session = session.get(ChatSession, session_id)
-            if not chat_session:
-                raise HTTPException(status_code=404, detail="Session not found")
-
-            chat_session.name = name
-            session.add(chat_session)
+            thread = Thread(id=thread_id, user_id=user_id)
+            session.add(thread)
             session.commit()
-            session.refresh(chat_session)
-            logger.info("session_name_updated", session_id=session_id, name=name)
-            return chat_session
+            session.refresh(thread)
+            logger.info("thread_created", thread_id=thread_id, user_id=user_id)
+            return thread
 
     def get_session_maker(self):
         """Get a session maker for creating database sessions.
