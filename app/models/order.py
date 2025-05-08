@@ -13,6 +13,7 @@ class Order(SQLModel, table=True):
         customer_id: ID del cliente que realizó el pedido
         status: Estado actual del pedido (pending, preparing, ready, delivered, cancelled)
         total_amount: Monto total del pedido
+        address: Dirección de entrega del pedido
         created_at: Fecha y hora de creación del pedido
         updated_at: Fecha y hora de última actualización del pedido
     """
@@ -20,6 +21,7 @@ class Order(SQLModel, table=True):
     customer_id: str = Field(index=True)
     status: str = Field(default="pending")
     total_amount: float = Field(default=0.0)
+    address: str = Field(default="")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     

@@ -21,11 +21,10 @@ class Message(BaseModel):
         role: The role of the message sender (user or assistant).
         content: The content of the message.
     """
-
     model_config = {"extra": "ignore"}
 
     role: Literal["user", "assistant", "system"] = Field(..., description="The role of the message sender")
-    content: str = Field(..., description="The content of the message", min_length=1, max_length=3000)
+    content: str = Field(..., description="The content of the message", min_length=1, max_length=5000)
 
     @field_validator("content")
     @classmethod

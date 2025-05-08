@@ -20,18 +20,21 @@ class OrderService:
         """Inicializa el servicio de pedidos."""
         self.db = database_service
     
-    async def create_order(self, customer_id: str, product_name: str, quantity: int, unit_price: float, subtotal: float) -> Order:
-        """Crea un nuevo pedido con un item.
+    async def create_order(self, customer_id: str, address: str, products: List[Dict[str, Any]]) -> Order:
+        """Crea un nuevo pedido con múltiples items.
         
         Args:
             customer_id: ID del cliente
-            product_name: Nombre del producto
-            quantity: Cantidad del producto
-            unit_price: Precio unitario del producto
-            subtotal: Subtotal del item (quantity * unit_price)
+            address: Dirección de entrega del pedido
+            products: Lista de diccionarios con la información de cada producto
+                     Cada diccionario debe contener:
+                     - product_name: Nombre del producto
+                     - quantity: Cantidad del producto
+                     - unit_price: Precio unitario del producto
+                     - subtotal: Subtotal del item (quantity * unit_price)
                   
         Returns:
-            Order: El pedido creado con su item
+            Order: El pedido creado con sus items
             
         Raises:
             HTTPException: Si hay un error al crear el pedido
@@ -39,23 +42,27 @@ class OrderService:
         try:
             with Session(self.db.engine) as session:
                 # Crear el pedido
-                order = Order(customer_id=customer_id)
+                order = Order(customer_id=customer_id, address=address)
                 session.add(order)
                 session.flush()  # Para obtener el ID del pedido
                 
-                # Crear el item del pedido
-                order_item = OrderItem(
-                    order_id=order.id,
-                    product_id="",  # No tenemos el ID del producto, solo el nombre
-                    product_name=product_name,
-                    quantity=quantity,
-                    unit_price=unit_price,
-                    subtotal=subtotal
-                )
-                session.add(order_item)
+                total_amount = 0
+                
+                # Crear los items del pedido
+                for product in products:
+                    order_item = OrderItem(
+                        order_id=order.id,
+                        product_id="",  # No tenemos el ID del producto, solo el nombre
+                        product_name=product["product_name"],
+                        quantity=product["quantity"],
+                        unit_price=product["unit_price"],
+                        subtotal=product["subtotal"]
+                    )
+                    session.add(order_item)
+                    total_amount += product["subtotal"]
                 
                 # Actualizar el monto total del pedido
-                order.total_amount = subtotal
+                order.total_amount = total_amount
                 session.add(order)
                 
                 session.commit()
@@ -146,6 +153,48 @@ class OrderService:
                 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error al eliminar el pedido: {str(e)}")
+
+    async def get_last_order(self, customer_id: str) -> Optional[Dict[str, Any]]:
+        """Obtiene la última orden de un cliente con sus productos.
+        
+        Args:
+            customer_id: ID del cliente (teléfono)
+            
+        Returns:
+            Optional[Dict[str, Any]]: Diccionario con la información de la última orden
+                                    o None si no existe ninguna orden
+        """
+        with Session(self.db.engine) as session:
+            # Obtener la última orden del cliente
+            statement = select(Order).where(
+                Order.customer_id == customer_id
+            ).order_by(Order.created_at.desc()).limit(1)
+            
+            order = session.exec(statement).first()
+            
+            if not order:
+                return None
+            
+            # Cargar los items de la orden
+            session.refresh(order)
+            
+            # Crear el diccionario de respuesta
+            return {
+                "order_id": str(order.id),
+                "status": order.status,
+                "total_amount": order.total_amount,
+                "address": order.address,
+                "created_at": order.created_at.isoformat(),
+                "products": [
+                    {
+                        "name": item.product_name,
+                        "quantity": item.quantity,
+                        "unit_price": item.unit_price,
+                        "subtotal": item.subtotal
+                    }
+                    for item in order.items
+                ]
+            }
 
 # Crear una instancia singleton del servicio
 order_service = OrderService() 

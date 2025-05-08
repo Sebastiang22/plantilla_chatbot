@@ -9,8 +9,8 @@ from langchain_core.tools.base import BaseTool
 
 from .duckduckgo_search import duckduckgo_search_tool
 from .menu_tool import get_menu as get_menu_tool
-from .order_tool import confirm_product
+from .order_tool import confirm_product, get_last_order
 
-__all__ = ["get_menu_tool", "duckduckgo_search_tool","confirm_product"]
-tools: list[BaseTool] = [duckduckgo_search_tool, get_menu_tool, confirm_product]
+__all__ = ["get_menu_tool", "duckduckgo_search_tool","confirm_product", "get_last_order"]
+tools: list[BaseTool] = [duckduckgo_search_tool, get_menu_tool, confirm_product, get_last_order]
 

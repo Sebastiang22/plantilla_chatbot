@@ -34,7 +34,7 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product
+from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order
 from core.logging import logger
 from core.prompts import (
     SYSTEM_PROMPT_CONVERSATION,
@@ -82,8 +82,8 @@ class LangGraphAgent:
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
         self.agent_tools = {
-            "conversation_agent": [get_menu_tool,duckduckgo_search_tool],
-            "order_data_agent": [confirm_product,get_menu_tool],
+            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order],
+            "order_data_agent": [confirm_product, get_menu_tool],
             "update_order_agent": [],
             "pqrs_agent": [],
         }

@@ -47,7 +47,7 @@ class DatabaseService:
                 max_overflow=max_overflow,
                 pool_timeout=30,  # Connection timeout (seconds)
                 pool_recycle=1800,  # Recycle connections after 30 minutes
-                echo=True,  # Enable SQL query logging
+                echo=False,  # Enable SQL query logging
             )
 
             # Create tables (only if they don't exist)
@@ -167,6 +167,18 @@ class DatabaseService:
         except Exception as e:
             logger.error("database_health_check_failed", error=str(e))
             return False
+
+    async def update_user_name(self, user_id: int, name: str) -> User:
+        """Actualiza el nombre de un usuario."""
+        with Session(self.engine) as session:
+            user = session.get(User, user_id)
+            if user:
+                user.name = name
+                session.add(user)
+                session.commit()
+                session.refresh(user)
+                logger.info("user_name_updated", user_id=user_id, new_name=name)
+            return user
 
 
 # Create a singleton instance
