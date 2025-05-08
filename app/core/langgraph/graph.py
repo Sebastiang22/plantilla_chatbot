@@ -52,16 +52,6 @@ from utils import (
     prepare_messages,
 )
 
-
-class OrchestratorState(TypedDict):
-    """
-    Estado compartido en el grafo, contiene los mensajes, la intención detectada y el historial de agentes.
-    """
-    messages: List[Any]
-    intent: Optional[str]
-    agent_history: List[str]
-
-
 class LangGraphAgent:
     """Manages the LangGraph Agent/workflow and interactions with the LLM.
 
@@ -264,6 +254,14 @@ class LangGraphAgent:
         messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["conversation_agent"])
         ai_message = await llm_with_tools.ainvoke(dump_messages(messages))
+
+        if hasattr(ai_message, 'tool_calls') and ai_message.tool_calls:
+            for tool_call in ai_message.tool_calls:
+                if tool_call["name"] == "get_last_order":
+                    print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
+                    arguments = tool_call["args"]
+                    arguments["phone"] = state.phone
+
         state.messages.append(ai_message)
         state.node_history.append("conversation_agent")
 

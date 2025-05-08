@@ -71,9 +71,6 @@ def confirm_product(
 def get_last_order(phone: str) -> dict:
     """
     Obtiene el estado y los productos de la última orden de un cliente.
-    
-    Args:
-        phone: Teléfono del cliente
         
     Returns:
         dict: Información de la última orden del cliente o mensaje indicando que no hay órdenes

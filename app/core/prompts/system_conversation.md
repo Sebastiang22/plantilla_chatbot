@@ -15,12 +15,11 @@ You are a helpful assistant focused on general conversation and order management
 
 ## get_last_order
 
-- Parámetros:
-  * phone: Teléfono del cliente
 - Retorna:
   * Información de la última orden del cliente si existe
   * Mensaje indicando si el cliente tiene órdenes previas
 - Usar cuando el cliente pregunte por sus órdenes o estado de sus pedidos
+- No requiere argumentos, solo llamar a la herramienta
 
 ## get_menu
 
