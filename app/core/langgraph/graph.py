@@ -16,6 +16,8 @@ from langchain_core.messages import (
     ToolMessage,
     convert_to_openai_messages,
 )
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langfuse.callback import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -34,7 +36,9 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order
+from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order, add_products_to_order
+from services.order_service import OrderService
+
 from core.logging import logger
 from core.prompts import (
     SYSTEM_PROMPT_CONVERSATION,
@@ -51,6 +55,7 @@ from utils import (
     dump_messages,
     prepare_messages,
 )
+from datetime import datetime
 
 class LangGraphAgent:
     """Manages the LangGraph Agent/workflow and interactions with the LLM.
@@ -74,7 +79,7 @@ class LangGraphAgent:
         self.agent_tools = {
             "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order],
             "order_data_agent": [confirm_product, get_menu_tool],
-            "update_order_agent": [],
+            "update_order_agent": [add_products_to_order,get_menu_tool],
             "pqrs_agent": [],
         }
 
@@ -224,24 +229,89 @@ class LangGraphAgent:
     async def _orchestrator(self, state: GraphState) -> GraphState:
         """
         Nodo orquestador que detecta la intención del mensaje del usuario usando el LLM y redirige al agente adecuado.
+        Verifica si el cliente tiene una orden pendiente antes de permitir nuevos pedidos.
         """
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
-        # Tomar el último mensaje del usuario
-        messages = state.messages
-        last_message = messages[-1]
-        # Preparar el prompt para el LLM
-        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORCHESTRATOR)
+
+        # Obtener la última orden del cliente si hay un número de teléfono
+        last_order_info = "No hay información de órdenes previas."
+        if state.phone:
+            try:
+                order_service = OrderService()
+                last_order = await order_service.get_last_order(state.phone)
+                print(f"\033[96m[last_order]: {last_order}\033[0m")
+                if last_order:
+                    last_order_info = f"""
+                    Estado de la última orden: {last_order['status']}
+                    Fecha: {last_order['created_at']}
+                    Productos: {[product['name'] for product in last_order['products']]}
+                    Total: {last_order['total_amount']}
+                    """
+            except Exception as e:
+                print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
+
+        # Preparar el prompt para el LLM con la información de la orden
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
+            agent_name="Orchestrator",
+            last_order_info=last_order_info,
+            current_date_and_time=current_time
+        )
+        
+        messages = prepare_messages(state.messages, self.llm, formatted_prompt)
 
         # Invocar el modelo para obtener la intención
         response = await self.llm.ainvoke(dump_messages(messages))
         print(f"\033[96m[orchestrator response]: {response}\033[0m")    
-        intent = response.content.strip()
+        
+        try:
+            # Obtener el contenido de la respuesta
+            content = response.content.strip()
+            
+            # Intentar extraer el nodo de diferentes formatos posibles
+            intent = None
+            
+            # Si es un JSON string, intentar parsearlo
+            if content.startswith('{') or content.startswith('```json'):
+                import json
+                # Limpiar el string de markdown si es necesario
+                json_str = content.replace('```json', '').replace('```', '').strip()
+                try:
+                    parsed = json.loads(json_str)
+                    # Intentar obtener el nodo de diferentes claves posibles
+                    intent = parsed.get('node') or parsed.get('intention') or parsed.get('response')
+                except json.JSONDecodeError:
+                    pass
+            
+            # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
+            if not intent:
+                # Buscar uno de los nodos válidos en el texto
+                valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                for node in valid_nodes:
+                    if node in content:
+                        intent = node
+                        break
+            
+            # Si no se encontró un nodo válido, usar conversation_agent como fallback
+            if not intent or intent not in valid_nodes:
+                print("\033[93mNodo no válido detectado, usando conversation_agent como fallback\033[0m")
+                intent = "conversation_agent"
+                
+        except Exception as e:
+            print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
+            intent = "conversation_agent"
+
         print(f"\033[96m[orchestrator intent detected]: {intent}\033[0m")
-        if intent == "order_data_agent":
-            state.node_history.append("order_data_agent")
-        else:
-            state.node_history.append("conversation_agent")
+
+        # Verificar si hay una orden pendiente antes de permitir nuevos pedidos
+        if intent == "order_data_agent" and state.phone:
+            last_order = await order_service.get_last_order(state.phone)
+            if last_order and last_order['status'] == "pending":
+                print("\033[93mCliente tiene una orden pendiente, redirigiendo a conversation_agent\033[0m")
+                intent = "conversation_agent"
+
+        state.node_history.append(intent)
         return state
 
     async def conversation_agent(self, state: GraphState) -> GraphState:
@@ -300,16 +370,54 @@ class LangGraphAgent:
         """
         Agente especializado en actualización de pedidos.
         """
-        print("\033[92m[update_order_agent]\033[0m")
-        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_UPDATE_ORDER)
+        print("\033[92m[update_order_agent] Entrando al agente de actualización de pedidos\033[0m")
+        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        
+        # Obtener la última orden del cliente
+        last_order_info = "No hay información de órdenes previas."
+        if state.phone:
+            try:
+                order_service = OrderService()
+                last_order = await order_service.get_last_order(state.phone)
+                if last_order:
+                    last_order_info = f"""
+                    Estado de la última orden: {last_order['status']}
+                    Fecha: {last_order['created_at']}
+                    Productos: {[product['name'] for product in last_order['products']]}
+                    Total: {last_order['total_amount']}
+                    """
+            except Exception as e:
+                print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
+
+        # Preparar el prompt con la información de la orden
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_prompt = SYSTEM_PROMPT_UPDATE_ORDER.format(
+            last_order_info=last_order_info,
+            current_date_and_time=current_time
+        )
+        
+        messages = prepare_messages(state.messages, self.llm, formatted_prompt)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["update_order_agent"])
-        generated_state = {"messages": [await llm_with_tools.ainvoke(dump_messages(messages))]}
+        response_msg = await llm_with_tools.ainvoke(dump_messages(messages))
+        
+        # Verificar y procesar llamadas a herramientas
+        if hasattr(response_msg, 'tool_calls') and response_msg.tool_calls:
+            for tool_call in response_msg.tool_calls:
+                print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
+                if tool_call["name"] == "add_products_to_order":
+                    # Asegurarse de que el phone esté disponible
+                    if "phone" not in tool_call["args"] and state.phone:
+                        tool_call["args"]["phone"] = state.phone
+        
+        generated_state = {"messages": [response_msg]}
         logger.info(
             "llm_response_generated",
             session_id=state.session_id,
             model=settings.LLM_MODEL,
             environment=settings.ENVIRONMENT.value,
         )
+        state.node_history.append("update_order_agent")
+        
         return generated_state
 
     async def pqrs_agent(self, state: GraphState) -> dict:
@@ -342,6 +450,10 @@ class LangGraphAgent:
         """Process tool calls from the order data agent."""
         return await self._tool_call(state)
 
+    async def _update_order_tool_call(self, state: GraphState) -> GraphState:
+        """Process tool calls from the update order agent."""
+        return await self._tool_call(state)
+
     async def create_graph(self) -> Optional[CompiledStateGraph]:
         """Create and configure the LangGraph workflow con orquestador y agentes especializados."""
         if self._graph is None:
@@ -357,6 +469,7 @@ class LangGraphAgent:
                 # Nodos de herramienta específicos
                 builder.add_node("conversation_tool_call", self._conversation_tool_call)
                 builder.add_node("order_data_tool_call", self._order_data_tool_call)
+                builder.add_node("update_order_tool_call", self._update_order_tool_call)
 
                 # Nodo de entrada
                 builder.set_entry_point("orchestrator")
@@ -389,9 +502,18 @@ class LangGraphAgent:
                 )
                 builder.add_edge("order_data_tool_call", "order_data_agent")
 
+                # update_order_agent <-> update_order_tool_call
+                builder.add_conditional_edges(
+                    "update_order_agent",
+                    self._router,
+                    {"tool_node": "update_order_tool_call", "end": END},
+                )
+                builder.add_edge("update_order_tool_call", "update_order_agent")
+
                 # Configurar puntos de finalización para cada agente
                 builder.set_finish_point("conversation_agent")
                 builder.set_finish_point("order_data_agent")
+                builder.set_finish_point("update_order_agent")
 
                 # Get connection pool (may be None in production if DB unavailable)
                 connection_pool = await self._get_connection_pool()

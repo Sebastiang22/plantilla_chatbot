@@ -6,6 +6,7 @@ from services.database import database_service
 import asyncio
 from typing import List, Dict, Any
 from sqlmodel import Session
+from uuid import UUID
 
 @tool
 def confirm_product(
@@ -88,4 +89,57 @@ def get_last_order(phone: str) -> dict:
         "message": "Se encontró la última orden del cliente",
         "has_orders": True,
         "order": last_order
-    } 
+    }
+
+@tool
+def add_products_to_order(phone: str, products: List[Dict[str, Any]]) -> dict:
+    """
+    Añade productos a la última orden existente del cliente.
+    
+    Args:
+        phone: Teléfono del cliente
+        products: Lista de diccionarios con la información de cada producto
+                 Cada diccionario debe contener:
+                 - product_name: Nombre del producto
+                 - quantity: Cantidad del producto
+                 - unit_price: Precio unitario del producto
+                 - subtotal: Subtotal del item (quantity * unit_price)
+        
+    Returns:
+        dict: Información actualizada de la orden con todos sus productos
+    """
+    try:
+        order_service = OrderService()
+        
+        # Obtener la última orden del cliente
+        last_order = asyncio.run(order_service.get_last_order(phone))
+        if not last_order:
+            return {
+                "message": "No se encontró ninguna orden pendiente para este cliente",
+                "error": True
+            }
+            
+        # Verificar que la orden no esté en estado 'completed' o 'cancelled'
+        if last_order['status'] in ['completed', 'cancelled']:
+            return {
+                "message": f"No se pueden añadir productos a una orden en estado '{last_order['status']}'",
+                "error": True
+            }
+            
+        # Añadir productos a la orden
+        updated_order = asyncio.run(
+            order_service.add_products_to_order(
+                order_id=UUID(last_order['order_id']),
+                products=products
+            )
+        )
+        
+        return {
+            "message": "Productos añadidos exitosamente a la orden",
+            "order": updated_order
+        }
+    except Exception as e:
+        return {
+            "message": f"Error al añadir productos a la orden: {str(e)}",
+            "error": True
+        } 
