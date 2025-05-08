@@ -26,6 +26,7 @@ from core.config import settings
 from core.limiter import limiter
 from core.logging import logger
 from services.database import database_service
+from api.routers import menu  # Importar el router del menú
 
 # Load environment variables
 load_dotenv()
@@ -110,6 +111,7 @@ app.add_middleware(
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(menu.router)  # Agregar el router del menú
 
 
 @app.get("/")

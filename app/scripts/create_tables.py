@@ -1,8 +1,8 @@
 from sqlmodel import SQLModel, create_engine
-from app.core.config import settings
+from core.config import settings
 
 # Importa todos los modelos para que SQLModel los registre
-from app.models import database  # noqa: F401
+from models import database  # noqa: F401
 
 def create_all_tables():
     """

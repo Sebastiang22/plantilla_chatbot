@@ -50,18 +50,6 @@ class DatabaseService:
                 echo=False,  # Enable SQL query logging
             )
 
-            # Create tables (only if they don't exist)
-            with Session(self.engine) as session:
-                # Drop all tables first (only in development)
-                if settings.ENVIRONMENT == Environment.DEVELOPMENT:
-                    SQLModel.metadata.drop_all(self.engine)
-                
-            # Create all tables
-            SQLModel.metadata.create_all(self.engine)
-                
-            # Verify tables exist
-            with Session(self.engine) as session:
-                session.exec(select(1)).first()
 
             logger.info(
                 "database_initialized",
@@ -144,14 +132,6 @@ class DatabaseService:
             session.refresh(thread)
             logger.info("thread_created", thread_id=thread_id, user_id=user_id)
             return thread
-
-    def get_session_maker(self):
-        """Get a session maker for creating database sessions.
-
-        Returns:
-            Session: A SQLModel session maker
-        """
-        return Session(self.engine)
 
     async def health_check(self) -> bool:
         """Check database connection health.
