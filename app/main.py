@@ -27,6 +27,7 @@ from core.limiter import limiter
 from core.logging import logger
 from services.database import database_service
 from api.routers import menu  # Importar el router del menú
+from api.orders import router as orders_router
 
 # Load environment variables
 load_dotenv()
@@ -103,7 +104,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Set up CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,6 +113,7 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(menu.router)  # Agregar el router del menú
+app.include_router(orders_router)
 
 
 @app.get("/")

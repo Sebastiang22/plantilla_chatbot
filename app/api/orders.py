@@ -1,0 +1,134 @@
+"""API endpoints para la gestión de órdenes."""
+
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from models.user import User
+from sqlmodel import select
+
+from services.order_service import order_service
+
+router = APIRouter(prefix="/orders", tags=["orders"])
+
+class OrderStatusUpdate(BaseModel):
+    """Modelo para actualizar el estado de una orden."""
+    order_id: str
+    state: str
+
+class OrderResponse(BaseModel):
+    """Modelo de respuesta para una orden."""
+    id: str
+    address: str
+    customer_name: str
+    products: List[Dict[str, Any]]
+    created_at: str
+    updated_at: str
+    state: str
+
+@router.get("/today", response_model=Dict[str, Any])
+async def get_today_orders():
+    """Obtiene las órdenes del día actual.
+    
+    Returns:
+        Dict[str, Any]: Diccionario con estadísticas y lista de órdenes
+    """
+    try:
+        # Obtener todas las órdenes del día
+        orders = await order_service.get_orders_today()
+        
+        # Obtener los nombres de los usuarios relacionados
+        customer_phones = [order.customer_id for order in orders]
+        with order_service.db.engine.connect() as conn:
+            users = conn.execute(select(User).where(User.phone.in_(customer_phones))).fetchall()
+            user_map = {user.phone: user.name for user in users}
+        
+        # Calcular estadísticas
+        total_orders = len(orders)
+        pending_orders = len([o for o in orders if o.status == "pendiente"])
+        complete_orders = len([o for o in orders if o.status == "completado"])
+        
+        return {
+            "stats": {
+                "total_orders": total_orders,
+                "pending_orders": pending_orders,
+                "complete_orders": complete_orders
+            },
+            "orders": [
+                {
+                    "id": str(order.id),
+                    "address": order.address,
+                    "customer_name": user_map.get(order.customer_id, order.customer_id),
+                    "products": [
+                        {
+                            "name": item.product_name,
+                            "quantity": item.quantity,
+                            "price": item.unit_price
+                        }
+                        for item in order.items
+                    ],
+                    "created_at": order.created_at.isoformat(),
+                    "updated_at": order.updated_at.isoformat(),
+                    "state": order.status
+                }
+                for order in orders
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/update_state")
+async def update_order_state(status_update: OrderStatusUpdate):
+    """Actualiza el estado de una orden.
+    
+    Args:
+        status_update: Datos para actualizar el estado
+        
+    Returns:
+        Dict[str, Any]: Respuesta con el resultado de la actualización
+    """
+    try:
+        order = await order_service.update_order_status(status_update.order_id, status_update.state)
+        return {
+            "message": "Estado actualizado correctamente",
+            "order": {
+                "id": str(order.id),
+                "state": order.status,
+                "updated_at": order.updated_at.isoformat()
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{order_id}")
+async def delete_order(order_id: str):
+    """Elimina una orden.
+    
+    Args:
+        order_id: ID de la orden a eliminar
+        
+    Returns:
+        Dict[str, str]: Mensaje de confirmación
+    """
+    try:
+        success = await order_service.delete_order(order_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        return {"message": f"Orden {order_id} eliminada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/ws-status")
+async def check_websocket_status():
+    """Verifica el estado del servidor WebSocket.
+    
+    Returns:
+        Dict[str, bool]: Estado del servidor
+    """
+    try:
+        # Aquí podrías implementar una verificación real del estado del WebSocket
+        return {"status": "online"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

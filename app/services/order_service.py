@@ -5,6 +5,7 @@ from uuid import UUID
 from datetime import datetime
 from sqlmodel import Session, select
 from fastapi import HTTPException
+from sqlalchemy.orm import selectinload
 
 from models.order import Order, OrderItem
 from services.database import database_service
@@ -278,6 +279,12 @@ class OrderService:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error al añadir productos a la orden: {str(e)}")
+
+    async def get_orders_today(self) -> List[Order]:
+        """Obtiene todos los pedidos de la tabla Order, incluyendo sus items."""
+        with Session(self.db.engine) as session:
+            statement = select(Order).options(selectinload(Order.items)).order_by(Order.created_at.desc())
+            return session.exec(statement).all()
 
 # Crear una instancia singleton del servicio
 order_service = OrderService() 

@@ -194,6 +194,7 @@ class LangGraphAgent:
         Procesa las llamadas a herramientas desde el último mensaje.
         """
         print("\033[94m[_tool_call] Procesando llamada a herramienta\033[0m")
+    
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
             print(f"\033[94m[tool] Ejecutando: {tool_call['name']} con args: {tool_call['args']}\033[0m")
@@ -233,10 +234,21 @@ class LangGraphAgent:
         """
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        print(f"\033[94m[mensajes] {state.messages[-10]}033[0m")
+
         # Verificar el último nodo visitado
         if state.node_history:
             last_node = state.node_history[-1]
             if last_node == "order_data_agent":
+                # Si ya se usó la tool confirm_product, redirigir a conversation_agent
+                if len(state.messages) >= 4:
+                    last_message = state.messages[-4]
+                    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                        for tool_call in last_message.tool_calls:
+                            if tool_call["name"] == "confirm_product":
+                                print("\033[93mPedido creado, redirigiendo a conversation_agent\033[0m")
+                                state.node_history.append("conversation_agent")
+                                return state
                 print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
                 state.node_history.append("order_data_agent")
                 return state
@@ -252,7 +264,6 @@ class LangGraphAgent:
                                 print("\033[93mProductos añadidos a la orden, redirigiendo a conversation_agent\033[0m")
                                 state.node_history.append("conversation_agent")
                                 return state
-                
                 print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
                 state.node_history.append("update_order_agent")
                 return state
