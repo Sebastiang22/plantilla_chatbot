@@ -233,7 +233,30 @@ class LangGraphAgent:
         """
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
-
+        # Verificar el último nodo visitado
+        if state.node_history:
+            last_node = state.node_history[-1]
+            if last_node == "order_data_agent":
+                print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
+                state.node_history.append("order_data_agent")
+                return state
+            elif last_node == "update_order_agent":
+                # Verificar si hay suficientes mensajes para revisar
+                if len(state.messages) >= 4:
+                    # Obtener el cuarto mensaje desde el final
+                    fourth_last_message = state.messages[-4]
+                    # Verificar si es un AIMessage y tiene tool_calls
+                    if hasattr(fourth_last_message, 'tool_calls') and fourth_last_message.tool_calls:
+                        for tool_call in fourth_last_message.tool_calls:
+                            if tool_call["name"] == "add_products_to_order":
+                                print("\033[93mProductos añadidos a la orden, redirigiendo a conversation_agent\033[0m")
+                                state.node_history.append("conversation_agent")
+                                return state
+                
+                print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
+                state.node_history.append("update_order_agent")
+                return state
+        
         # Obtener la última orden del cliente si hay un número de teléfono
         last_order_info = "No hay información de órdenes previas."
         if state.phone:
@@ -259,7 +282,9 @@ class LangGraphAgent:
             current_date_and_time=current_time
         )
         
-        messages = prepare_messages(state.messages, self.llm, formatted_prompt)
+        # Limitar mensajes a los últimos 10
+        recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+        messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
 
         # Invocar el modelo para obtener la intención
         response = await self.llm.ainvoke(dump_messages(messages))
@@ -308,8 +333,8 @@ class LangGraphAgent:
         if intent == "order_data_agent" and state.phone:
             last_order = await order_service.get_last_order(state.phone)
             if last_order and last_order['status'] == "pending":
-                print("\033[93mCliente tiene una orden pendiente, redirigiendo a conversation_agent\033[0m")
-                intent = "conversation_agent"
+                print("\033[93mCliente tiene una orden pendiente, redirigiendo a update_order_agent\033[0m")
+                intent = "update_order_agent"
 
         state.node_history.append(intent)
         return state
@@ -321,7 +346,9 @@ class LangGraphAgent:
         print("\033[92m[conversation_agent] Entrando al agente de conversación\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
 
-        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
+        # Limitar mensajes a los últimos 10
+        recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+        messages = prepare_messages(recent_messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["conversation_agent"])
         ai_message = await llm_with_tools.ainvoke(dump_messages(messages))
 
@@ -343,7 +370,10 @@ class LangGraphAgent:
         """
         print("\033[92m[order_data_agent] Entrando al agente de datos de pedido\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
-        messages = prepare_messages(state.messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
+        
+        # Limitar mensajes a los últimos 10
+        recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+        messages = prepare_messages(recent_messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
         response_msg = await llm_with_tools.ainvoke(dump_messages(messages))
         
@@ -396,7 +426,9 @@ class LangGraphAgent:
             current_date_and_time=current_time
         )
         
-        messages = prepare_messages(state.messages, self.llm, formatted_prompt)
+        # Limitar mensajes a los últimos 10
+        recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+        messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["update_order_agent"])
         response_msg = await llm_with_tools.ainvoke(dump_messages(messages))
         
@@ -405,9 +437,12 @@ class LangGraphAgent:
             for tool_call in response_msg.tool_calls:
                 print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
                 if tool_call["name"] == "add_products_to_order":
-                    # Asegurarse de que el phone esté disponible
-                    if "phone" not in tool_call["args"] and state.phone:
+                    # Asegurarse de que el phone esté disponible y reemplazarlo siempre
+                    if state.phone:
                         tool_call["args"]["phone"] = state.phone
+                        print(f"\033[32m Añadido phone {state.phone} a add_products_to_order\033[0m")
+                    else:
+                        print("\033[93mError: No hay número de teléfono disponible para add_products_to_order\033[0m")
         
         generated_state = {"messages": [response_msg]}
         logger.info(

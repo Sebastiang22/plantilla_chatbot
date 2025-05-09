@@ -133,7 +133,7 @@ def add_products_to_order(phone: str, products: List[Dict[str, Any]]) -> dict:
                 products=products
             )
         )
-        
+
         return {
             "message": "Productos añadidos exitosamente a la orden",
             "order": updated_order

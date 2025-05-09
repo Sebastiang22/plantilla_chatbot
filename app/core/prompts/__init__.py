@@ -14,7 +14,7 @@ def load_prompt(filename: str) -> str:
     prompt_path = Path(__file__).parent / filename
     with open(prompt_path, "r", encoding="utf-8") as f:
         return f.read()
-
+    
 def load_orchestrator_prompt() -> str:
     """
     Carga el prompt del orquestador con valores por defecto.

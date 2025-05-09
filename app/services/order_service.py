@@ -175,8 +175,13 @@ class OrderService:
             if not order:
                 return None
             
-            # Cargar los items de la orden
-            session.refresh(order)
+            # Forzar una recarga de los datos desde la base de datos
+            session.expire_all()  # Expirar todos los objetos en la sesión
+            session.refresh(order)  # Recargar la orden
+            
+            # Cargar explícitamente los items de la orden
+            items_statement = select(OrderItem).where(OrderItem.order_id == order.id)
+            order.items = session.exec(items_statement).all()
             
             # Crear el diccionario de respuesta
             return {
