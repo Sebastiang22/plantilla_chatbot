@@ -113,7 +113,7 @@ export function OrderModal({
             <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">Dirección</p>
-              <p className="text-sm text-muted-foreground">{order.table_id}</p>
+              <p className="text-sm text-muted-foreground">{order.address}</p>
             </div>
           </div>
           <div className="flex items-start gap-2">

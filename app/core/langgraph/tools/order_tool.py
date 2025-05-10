@@ -28,6 +28,7 @@ def confirm_product(
                  - quantity: Cantidad del producto
                  - unit_price: Precio unitario del producto
                  - subtotal: Subtotal del item (quantity * unit_price)
+                 - details: Observaciones o detalles específicos del producto (opcional)
         
     Returns:
         dict: Información del pedido creado con todos sus productos
@@ -55,7 +56,8 @@ def confirm_product(
                 "name": item.product_name,
                 "quantity": item.quantity,
                 "unit_price": item.unit_price,
-                "subtotal": item.subtotal
+                "subtotal": item.subtotal,
+                "details": item.details
             }
             for item in order.items
         ]
@@ -104,6 +106,7 @@ def add_products_to_order(phone: str, products: List[Dict[str, Any]]) -> dict:
                  - quantity: Cantidad del producto
                  - unit_price: Precio unitario del producto
                  - subtotal: Subtotal del item (quantity * unit_price)
+                 - details: Observaciones o detalles específicos del producto (opcional)
         
     Returns:
         dict: Información actualizada de la orden con todos sus productos
@@ -142,4 +145,57 @@ def add_products_to_order(phone: str, products: List[Dict[str, Any]]) -> dict:
         return {
             "message": f"Error al añadir productos a la orden: {str(e)}",
             "error": True
-        } 
+        }
+
+@tool
+def update_order_product(phone: str, product_name: str, new_data: Dict[str, Any]) -> dict:
+    """
+    Modifica los datos de un producto específico en la última orden del cliente.
+    
+    Args:
+        phone: Teléfono del cliente
+        product_name: Nombre del producto a modificar
+        new_data: Diccionario con los nuevos datos del producto. Puede contener:
+                 - quantity: Nueva cantidad (opcional)
+                 - unit_price: Nuevo precio unitario (opcional)
+                 - details: Nuevas observaciones (opcional)
+        
+    Returns:
+        dict: Información actualizada de la orden con el producto modificado
+    """
+    try:
+        order_service = OrderService()
+        
+        # Obtener la última orden del cliente
+        last_order = asyncio.run(order_service.get_last_order(phone))
+        if not last_order:
+            return {
+                "message": "No se encontró ninguna orden pendiente para este cliente",
+                "error": True
+            }
+            
+        # Verificar que la orden no esté en estado 'completed' o 'cancelled'
+        if last_order['status'] in ['completed', 'cancelled']:
+            return {
+                "message": f"No se pueden modificar productos en una orden en estado '{last_order['status']}'",
+                "error": True
+            }
+            
+        # Modificar el producto en la orden
+        updated_order = asyncio.run(
+            order_service.update_order_product(
+                order_id=UUID(last_order['order_id']),
+                product_name=product_name,
+                new_data=new_data
+            )
+        )
+
+        return {
+            "message": "Producto modificado exitosamente en la orden",
+            "order": updated_order
+        }
+    except Exception as e:
+        return {
+            "message": f"Error al modificar el producto en la orden: {str(e)}",
+            "error": True
+        }

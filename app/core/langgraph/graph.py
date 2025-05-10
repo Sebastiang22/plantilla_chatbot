@@ -36,7 +36,7 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order, add_products_to_order
+from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order, add_products_to_order, update_order_product
 from services.order_service import OrderService
 
 from core.logging import logger
@@ -79,7 +79,7 @@ class LangGraphAgent:
         self.agent_tools = {
             "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order],
             "order_data_agent": [confirm_product, get_menu_tool],
-            "update_order_agent": [add_products_to_order,get_menu_tool],
+            "update_order_agent": [add_products_to_order,get_menu_tool,update_order_product],
             "pqrs_agent": [],
         }
 
@@ -234,7 +234,6 @@ class LangGraphAgent:
         """
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
-        print(f"\033[94m[mensajes] {state.messages[-10]}033[0m")
 
         # Verificar el último nodo visitado
         if state.node_history:

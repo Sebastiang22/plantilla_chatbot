@@ -33,6 +33,7 @@ class OrderService:
                      - quantity: Cantidad del producto
                      - unit_price: Precio unitario del producto
                      - subtotal: Subtotal del item (quantity * unit_price)
+                     - details: Observaciones o detalles específicos del producto (opcional)
                   
         Returns:
             Order: El pedido creado con sus items
@@ -57,7 +58,8 @@ class OrderService:
                         product_name=product["product_name"],
                         quantity=product["quantity"],
                         unit_price=product["unit_price"],
-                        subtotal=product["subtotal"]
+                        subtotal=product["subtotal"],
+                        details=product.get("details", "")  # Obtener details si existe, sino cadena vacía
                     )
                     session.add(order_item)
                     total_amount += product["subtotal"]
@@ -196,7 +198,8 @@ class OrderService:
                         "name": item.product_name,
                         "quantity": item.quantity,
                         "unit_price": item.unit_price,
-                        "subtotal": item.subtotal
+                        "subtotal": item.subtotal,
+                        "details": item.details
                     }
                     for item in order.items
                 ]
@@ -213,6 +216,7 @@ class OrderService:
                      - quantity: Cantidad del producto
                      - unit_price: Precio unitario del producto
                      - subtotal: Subtotal del item (quantity * unit_price)
+                     - details: Observaciones o detalles específicos del producto (opcional)
                   
         Returns:
             Dict[str, Any]: Diccionario con la información actualizada de la orden
@@ -244,7 +248,8 @@ class OrderService:
                         product_name=product["product_name"],
                         quantity=product["quantity"],
                         unit_price=product["unit_price"],
-                        subtotal=product["subtotal"]
+                        subtotal=product["subtotal"],
+                        details=product.get("details", "")  # Obtener details si existe, sino cadena vacía
                     )
                     session.add(order_item)
                     total_amount += product["subtotal"]
@@ -256,24 +261,7 @@ class OrderService:
                 
                 session.commit()
                 session.refresh(order)
-                
-                # Retornar la orden actualizada en el mismo formato que get_last_order
-                return {
-                    "order_id": str(order.id),
-                    "status": order.status,
-                    "total_amount": order.total_amount,
-                    "address": order.address,
-                    "created_at": order.created_at.isoformat(),
-                    "products": [
-                        {
-                            "name": item.product_name,
-                            "quantity": item.quantity,
-                            "unit_price": item.unit_price,
-                            "subtotal": item.subtotal
-                        }
-                        for item in order.items
-                    ]
-                }
+                return order
                 
         except HTTPException:
             raise
@@ -285,6 +273,99 @@ class OrderService:
         with Session(self.db.engine) as session:
             statement = select(Order).options(selectinload(Order.items)).order_by(Order.created_at.desc())
             return session.exec(statement).all()
+
+    async def update_order_product(self, order_id: UUID, product_name: str, new_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Modifica los datos de un producto específico en una orden.
+        
+        Args:
+            order_id: ID de la orden
+            product_name: Nombre del producto a modificar
+            new_data: Diccionario con los nuevos datos del producto. Puede contener:
+                     - product_name: Nuevo nombre del producto (opcional)
+                     - quantity: Nueva cantidad (opcional)
+                     - details: Nuevas observaciones (opcional)
+                  
+        Returns:
+            Dict[str, Any]: Diccionario con la información actualizada de la orden
+            
+        Raises:
+            HTTPException: Si la orden no existe, el producto no se encuentra o hay un error al actualizarlo
+        """
+        try:
+            with Session(self.db.engine) as session:
+                # Verificar que la orden existe
+                order = session.get(Order, order_id)
+                if not order:
+                    raise HTTPException(status_code=404, detail="Orden no encontrada")
+                
+                # Verificar que la orden no esté en estado 'completed' o 'cancelled'
+                if order.status in ['completed', 'cancelled']:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"No se pueden modificar productos en una orden en estado '{order.status}'"
+                    )
+                
+                # Buscar el producto en la orden
+                statement = select(OrderItem).where(
+                    OrderItem.order_id == order_id,
+                    OrderItem.product_name == product_name
+                )
+                order_item = session.exec(statement).first()
+                
+                if not order_item:
+                    raise HTTPException(status_code=404, detail=f"Producto '{product_name}' no encontrado en la orden")
+                
+                # Validar y actualizar los datos del producto
+                if "product_name" in new_data:
+                    if not new_data["product_name"]:
+                        raise HTTPException(status_code=400, detail="El nombre del producto no puede estar vacío")
+                    order_item.product_name = new_data["product_name"]
+                
+                if "quantity" in new_data:
+                    if not isinstance(new_data["quantity"], (int, float)) or new_data["quantity"] <= 0:
+                        raise HTTPException(status_code=400, detail="La cantidad debe ser un número positivo")
+                    order_item.quantity = new_data["quantity"]
+                    order_item.subtotal = order_item.quantity * order_item.unit_price
+                
+                if "details" in new_data:
+                    order_item.details = str(new_data["details"])
+                
+                # Recalcular el total de la orden
+                total_amount = 0
+                for item in order.items:
+                    total_amount += item.subtotal
+                
+                order.total_amount = total_amount
+                order.updated_at = datetime.utcnow()
+                
+                session.add(order)
+                session.add(order_item)
+                session.commit()
+                session.refresh(order)
+                
+                # Crear el diccionario de respuesta
+                return {
+                    "order_id": str(order.id),
+                    "status": order.status,
+                    "total_amount": order.total_amount,
+                    "address": order.address,
+                    "created_at": order.created_at.isoformat(),
+                    "products": [
+                        {
+                            "name": item.product_name,
+                            "quantity": item.quantity,
+                            "unit_price": item.unit_price,
+                            "subtotal": item.subtotal,
+                            "details": item.details
+                        }
+                        for item in order.items
+                    ]
+                }
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error al modificar el producto en la orden: {str(e)}")
 
 # Crear una instancia singleton del servicio
 order_service = OrderService() 

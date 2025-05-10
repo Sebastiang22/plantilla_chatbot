@@ -61,9 +61,15 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
 
   // Definir los colores con type safety
   const statusColors: Record<string, string> = {
-    pendiente: "bg-yellow-500",
-    "en preparación": "bg-blue-500",
-    completado: "bg-green-500",
+    pending: "bg-yellow-500",
+    preparing: "bg-blue-500",
+    completed: "bg-green-500",
+  }
+  
+  const statusLabels: Record<string, string> = {
+    pending: "Pendiente",
+    preparing: "En preparación",
+    completed: "Completado",
   }
   
   const handleStatusChange = async (value: string) => {
@@ -93,7 +99,7 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <DialogTitle className="text-xl">Pedido #{order.id}</DialogTitle>
             <Badge className={`${statusColors[currentOrderState] || "bg-gray-500"} whitespace-nowrap`}>
-              {currentOrderState.charAt(0).toUpperCase() + currentOrderState.slice(1)}
+              {statusLabels[currentOrderState] || currentOrderState}
             </Badge>
           </div>
           <DialogDescription>Detalles y gestión del pedido</DialogDescription>
@@ -113,7 +119,7 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>Dirección</span>
               </div>
-              <div className="font-medium">{order.table_id}</div>
+              <div className="font-medium">{order.address}</div>
             </div>
           </div>
 
@@ -148,13 +154,13 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar estado">
                   {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {currentOrderState.charAt(0).toUpperCase() + currentOrderState.slice(1)}
+                  {statusLabels[currentOrderState] || currentOrderState}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
-                <SelectItem value="en preparación">En Preparación</SelectItem>
-                <SelectItem value="completado">Completado</SelectItem>
+                <SelectItem value="pending">Pendiente</SelectItem>
+                <SelectItem value="preparing">En Preparación</SelectItem>
+                <SelectItem value="completed">Completado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -230,8 +236,8 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
           
           <Button
             className="w-full"
-            onClick={() => onStatusUpdate(order.id, "completado")}
-            disabled={isUpdating || currentOrderState === "completado"}
+            onClick={() => onStatusUpdate(order.id, "completed")}
+            disabled={isUpdating || currentOrderState === "completed"}
           >
             {isUpdating ? (
               <>

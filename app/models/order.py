@@ -39,6 +39,7 @@ class OrderItem(SQLModel, table=True):
         quantity: Cantidad del producto
         unit_price: Precio unitario del producto
         subtotal: Subtotal del item (quantity * unit_price)
+        details: Observaciones o detalles específicos del producto en este pedido
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     order_id: UUID = Field(foreign_key="order.id", index=True)
@@ -47,6 +48,7 @@ class OrderItem(SQLModel, table=True):
     quantity: int
     unit_price: float
     subtotal: float
+    details: str = Field(default="")
     
     # Relación con el pedido
     order: Order = Relationship(back_populates="items") 
