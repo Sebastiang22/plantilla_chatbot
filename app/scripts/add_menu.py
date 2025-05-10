@@ -1,43 +1,13 @@
 from sqlmodel import SQLModel, create_engine, Session, select
-from app.models.product import Product
-from app.core.config import settings
+from models.product import Product
+from core.config import settings
 
 def add_products_to_db():
     """
     Agrega los productos definidos a la tabla 'product' en la base de datos.
     """
     productos = [
-        # Menú Ejecutivo
-        {
-            "name": "Pollo a la jardinera",
-            "description": "Pimentón, maicitos y cebolla, crema de zanahoria, arroz blanco, jugo, ensalada natural",
-            "price": 19000,
-            "category": "ejecutivo"
-        },
-        {
-            "name": "Cazuela de lentejas",
-            "description": "Cerdo en julianas con chorizo en trozos, maicitos, arroz blanco, jugo, ensalada",
-            "price": 20000,
-            "category": "ejecutivo"
-        },
-        {
-            "name": "Bandeja típica con chicharrón",
-            "description": "Porción de frijol, chicharrón, tajada, huevo frito, arroz blanco, ensalada, jugo",
-            "price": 28000,
-            "category": "ejecutivo"
-        },
-        {
-            "name": "Menú vegetariano",
-            "description": "Frijoles, huevo, sopa o crema del día, jugo, ensalada natural, acompañante",
-            "price": 17000,
-            "category": "ejecutivo"
-        },
-        {
-            "name": "Menú super precio",
-            "description": "90 grs de pollo, crema o sopa del día, jugo, arroz, ensalada, acompañante",
-            "price": 16000,
-            "category": "ejecutivo"
-        },
+
         # Menú a la carta
         {
             "name": "Churrasco + chorizo",

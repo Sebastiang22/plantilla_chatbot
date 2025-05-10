@@ -9,7 +9,7 @@ from sqlmodel import select
 
 from services.order_service import order_service
 
-router = APIRouter(prefix="/orders", tags=["orders"])
+router = APIRouter(tags=["orders"])
 
 class OrderStatusUpdate(BaseModel):
     """Modelo para actualizar el estado de una orden."""

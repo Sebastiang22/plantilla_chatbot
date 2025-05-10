@@ -11,7 +11,8 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-
+import { buildApiUrl } from "@/lib/config";
+import { backendConfig } from "@/lib/config";
 
 interface MenuImageModalProps {
   open: boolean;
@@ -68,7 +69,7 @@ export function MenuImageModal({ open, onOpenChange }: MenuImageModalProps) {
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
 
-      const response = await fetch('http://localhost:7071/menu/extract', {
+      const response = await fetch(buildApiUrl(backendConfig.endpoints.menu.extract), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

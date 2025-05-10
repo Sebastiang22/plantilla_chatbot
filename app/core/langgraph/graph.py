@@ -36,7 +36,14 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import get_menu_tool, duckduckgo_search_tool, tools, confirm_product, get_last_order, add_products_to_order, update_order_product
+from core.langgraph.tools import (get_menu_tool, 
+                                  duckduckgo_search_tool, 
+                                  tools, 
+                                  confirm_product,
+                                  get_last_order,
+                                  add_products_to_order,
+                                    update_order_product,
+                                    send_menu_images)
 from services.order_service import OrderService
 
 from core.logging import logger
@@ -77,7 +84,7 @@ class LangGraphAgent:
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
         self.agent_tools = {
-            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order],
+            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order,send_menu_images],
             "order_data_agent": [confirm_product, get_menu_tool],
             "update_order_agent": [add_products_to_order,get_menu_tool,update_order_product],
             "pqrs_agent": [],
@@ -87,7 +94,7 @@ class LangGraphAgent:
 
     def _get_model_kwargs(self) -> Dict[str, Any]:
         """Get environment-specific model kwargs.
-
+        
         Returns:
             Dict[str, Any]: Additional model arguments based on environment
         """
@@ -361,17 +368,20 @@ class LangGraphAgent:
         messages = prepare_messages(recent_messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["conversation_agent"])
         ai_message = await llm_with_tools.ainvoke(dump_messages(messages))
-
         if hasattr(ai_message, 'tool_calls') and ai_message.tool_calls:
             for tool_call in ai_message.tool_calls:
                 if tool_call["name"] == "get_last_order":
                     print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
                     arguments = tool_call["args"]
                     arguments["phone"] = state.phone
+                elif tool_call["name"] == "send_menu_images":
+                    print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
+                    arguments = tool_call["args"]
+                    arguments["phone"] = state.phone
 
         state.messages.append(ai_message)
         state.node_history.append("conversation_agent")
-
+        
         return state
 
     async def order_data_agent(self, state: GraphState) -> dict:
@@ -564,11 +574,13 @@ class LangGraphAgent:
                 connection_pool = await self._get_connection_pool()
                 if connection_pool:
                     checkpointer = AsyncPostgresSaver(connection_pool)
+                    # Inicializar las tablas del checkpointer
                     await checkpointer.setup()
                 else:
                     checkpointer = None
                     if settings.ENVIRONMENT != Environment.PRODUCTION:
                         raise Exception("Connection pool initialization failed")
+
 
                 self._graph = builder.compile(
                     checkpointer=checkpointer,

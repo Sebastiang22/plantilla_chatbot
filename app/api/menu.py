@@ -15,7 +15,6 @@ class MenuImageRequest(BaseModel):
 
 
 router = APIRouter(
-    prefix="/menu",
     tags=["menu"],
     responses={404: {"description": "Not found"}},
 )
@@ -55,8 +54,20 @@ async def extract_menu_from_image(
         menu_data = await openai_service.extract_menu_from_image(
             image_hex=request.image_hex,
             prompt="Extrae toda la información del menú de esta imagen en formato JSON. "
-                  "Incluye nombres de platos, descripciones, precios y categorías."
+                  "Los campos deben ser: 'name' para el nombre del plato, 'description' para la descripción, "
+                  "'price' para el precio (como número), y 'category' para la categoría. "
+                  "Ejemplo: {'menu': [{'name': 'Plato 1', 'description': 'Descripción 1', 'price': 20000, 'category': 'Menú Ejecutivo'}]}"
         )
+        
+        print("Datos recibidos de OpenAI:", menu_data)
+        
+        # Procesar y guardar los productos del menú
+        success = await menu_service.process_menu_data(menu_data)
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Error al procesar y guardar los productos del menú"
+            )
         
         # Obtener el menú actualizado de la base de datos
         updated_menu = await menu_service.get_menu(tipo_menu=request.tipo_menu)

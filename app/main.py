@@ -21,13 +21,13 @@ from langfuse import Langfuse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from api.api import api_router
+from api.chatbot import router as chatbot_router
+from api.menu import router as menu_router
+from api.orders import router as orders_router
 from core.config import settings
 from core.limiter import limiter
 from core.logging import logger
 from services.database import database_service
-from api.routers import menu  # Importar el router del menú
-from api.orders import router as orders_router
 
 # Load environment variables
 load_dotenv()
@@ -110,10 +110,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include API router
-app.include_router(api_router, prefix=settings.API_V1_STR)
-app.include_router(menu.router)  # Agregar el router del menú
-app.include_router(orders_router)
+# Include API routers
+app.include_router(chatbot_router, prefix=f"{settings.API_V1_STR}/chatbot", tags=["chatbot"])
+app.include_router(menu_router, prefix=f"{settings.API_V1_STR}/menu", tags=["menu"])
+app.include_router(orders_router, prefix=f"{settings.API_V1_STR}/orders", tags=["orders"])
 
 
 @app.get("/")
