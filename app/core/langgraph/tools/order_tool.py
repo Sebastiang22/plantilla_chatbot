@@ -2,14 +2,11 @@
 
 from langchain_core.tools import tool
 from services.order_service import OrderService
-from services.menu_service import menu_service
 from services.database import database_service
 import asyncio
 from typing import List, Dict, Any
 from sqlmodel import Session
 from uuid import UUID
-import aiohttp
-import json
 
 @tool
 def confirm_product(
@@ -200,71 +197,5 @@ def update_order_product(phone: str, product_name: str, new_data: Dict[str, Any]
     except Exception as e:
         return {
             "message": f"Error al modificar el producto en la orden: {str(e)}",
-            "error": True
-        }
-
-@tool
-async def send_menu_images(phone: str) -> dict:
-    """
-    Obtiene todas las imágenes del menú y las envía al cliente a través de WhatsApp.
-    
-    Args:
-        phone: Número de teléfono del cliente
-        
-    Returns:
-        dict: Resultado de la operación con mensaje de éxito o error
-    """
-    try:
-        # Obtener todas las imágenes del menú
-        menu_images = await menu_service.get_menu()
-        
-        if not menu_images:
-            return {
-                "message": "No hay imágenes de menú disponibles",
-                "error": True
-            }
-            
-        # Enviar cada imagen al cliente
-        async with aiohttp.ClientSession() as session:
-            for menu_image in menu_images:
-                # Verificar que la imagen en hexadecimal no esté vacía
-                if not menu_image.image_hex:
-                    print(f"Error: La imagen del menú {menu_image.tipo_menu.value} está vacía")
-                    continue
-
-                # Preparar los datos para enviar en el formato que espera el endpoint
-                payload = {
-                    "phone": phone,
-                    "imageHex": menu_image.image_hex,
-                    "caption": f"Menú {menu_image.tipo_menu.value}"
-                }
-                
-                # Enviar la imagen
-                async with session.post(
-                    "http://localhost:3001/api/send-images",
-                    json=payload,
-                    headers={
-                        "Content-Type": "application/json"
-                    }
-                ) as response:
-                    response_text = await response.text()
-                    print(f"Respuesta del servidor: {response_text}")
-                    print(f"Status code: {response.status}")
-                    
-                    if not response.ok:
-                        return {
-                            "message": f"Error al enviar imagen: {response_text}",
-                            "error": True
-                        }
-        
-        return {
-            "message": "Imágenes del menú enviadas exitosamente",
-            "error": False
-        }
-        
-    except Exception as e:
-        print(f"Error al enviar imágenes del menú: {str(e)}")
-        return {
-            "message": f"Error al enviar imágenes del menú: {str(e)}",
             "error": True
         }

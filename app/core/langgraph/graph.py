@@ -43,7 +43,8 @@ from core.langgraph.tools import (get_menu_tool,
                                   get_last_order,
                                   add_products_to_order,
                                     update_order_product,
-                                    send_menu_images)
+                                    send_menu_images,
+                                    send_location_tool)
 from services.order_service import OrderService
 
 from core.logging import logger
@@ -84,7 +85,7 @@ class LangGraphAgent:
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
         self.agent_tools = {
-            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order,send_menu_images],
+            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order, send_menu_images, send_location_tool],
             "order_data_agent": [confirm_product, get_menu_tool],
             "update_order_agent": [add_products_to_order,get_menu_tool,update_order_product],
             "pqrs_agent": [],
@@ -381,7 +382,7 @@ class LangGraphAgent:
 
         state.messages.append(ai_message)
         state.node_history.append("conversation_agent")
-        
+
         return state
 
     async def order_data_agent(self, state: GraphState) -> dict:

@@ -261,8 +261,8 @@ app.post('/api/send-location', async (req, res) => {
 
         const locationMessage = {
             location: {
-                degreesLatitude: 5.0819408,
-                degreesLongitude: -75.5240344,
+                degreesLatitude: 5.03829,
+                degreesLongitude: -75.44636,
                 name: 'Restaurante Juanchito Plaza',
                 address: 'Km 13 Via Magdalena, Manizales, Caldas'
             }
