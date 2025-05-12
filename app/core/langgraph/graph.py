@@ -206,21 +206,29 @@ class LangGraphAgent:
         outputs = []
         for tool_call in state.messages[-1].tool_calls:
             print(f"\033[94m[tool] Ejecutando: {tool_call['name']} con args: {tool_call['args']}\033[0m")
-            # Add state to the tool arguments if the tool is confirm_product
-            if tool_call["name"] == "confirm_product":
-                # Get phone from the state dictionary
-                phone = state.phone
-                if not phone:
-                    raise ValueError("Phone number is required for confirm_product tool")
-                tool_call["args"]["state"] = {"phone": phone}
-            tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
-            outputs.append(
-                ToolMessage(
-                    content=str(tool_result),
-                    name=tool_call["name"],
-                    tool_call_id=tool_call["id"],
+            
+            try:
+                tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
+                outputs.append(
+                    ToolMessage(
+                        content=str(tool_result),
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"],
+                    )
                 )
-            )
+            except Exception as e:
+                print(f"\033[93mError al ejecutar la herramienta {tool_call['name']}: {str(e)}\033[0m")
+                outputs.append(
+                    ToolMessage(
+                        content=str({
+                            "message": f"Error al ejecutar la herramienta: {str(e)}",
+                            "error": True
+                        }),
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"],
+                    )
+                )
+        
         print("\033[94m[_tool_call] Respuesta de la herramienta generada\033[0m")
         return {"messages": outputs}
 
@@ -327,8 +335,8 @@ class LangGraphAgent:
                                         
                                 except Exception as e:
                                     print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
-                                    state.node_history.append("conversation_agent")
-                                    return state
+                                state.node_history.append("conversation_agent")
+                                return state
                 print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
                 state.node_history.append("order_data_agent")
                 return state
@@ -398,12 +406,12 @@ class LangGraphAgent:
                                         
                                 except Exception as e:
                                     print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
-                                    state.node_history.append("conversation_agent")
-                                    return state
+                                state.node_history.append("conversation_agent")
+                                return state
                 print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
                 state.node_history.append("update_order_agent")
                 return state
-        
+
         # Preparar el prompt para el LLM con la información de la orden
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
@@ -576,6 +584,26 @@ class LangGraphAgent:
                         print(f"\033[32m Añadido phone {state.phone} a add_products_to_order\033[0m")
                     else:
                         print("\033[93mError: No hay número de teléfono disponible para add_products_to_order\033[0m")
+                    
+                    # Verificar que exista el parámetro products
+                    if not tool_call["args"].get("products"):
+                        print("\033[93mError: Falta el parámetro 'products' en add_products_to_order\033[0m")
+                        # Establecer un array vacío como valor por defecto para evitar errores
+                        tool_call["args"]["products"] = []
+                        
+                elif tool_call["name"] == "update_order_product":
+                    # Asegurarse de que el phone esté disponible
+                    if state.phone:
+                        tool_call["args"]["phone"] = state.phone
+                        print(f"\033[32m Añadido phone {state.phone} a update_order_product\033[0m")
+                    
+                    # Verificar que existan los parámetros requeridos
+                    if not tool_call["args"].get("product_name"):
+                        print("\033[93mError: Falta el parámetro 'product_name' en update_order_product\033[0m")
+                    if not tool_call["args"].get("new_data"):
+                        print("\033[93mError: Falta el parámetro 'new_data' en update_order_product\033[0m")
+                        # Establecer un diccionario vacío como valor por defecto para evitar errores
+                        tool_call["args"]["new_data"] = {}
         
         generated_state = {"messages": [response_msg]}
         logger.info(
