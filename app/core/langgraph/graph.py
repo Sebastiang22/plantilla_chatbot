@@ -243,38 +243,6 @@ class LangGraphAgent:
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
 
-        # Verificar el último nodo visitado
-        if state.node_history:
-            last_node = state.node_history[-1]
-            if last_node == "order_data_agent":
-                # Si ya se usó la tool confirm_product, redirigir a conversation_agent
-                if len(state.messages) >= 4:
-                    last_message = state.messages[-4]
-                    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                        for tool_call in last_message.tool_calls:
-                            if tool_call["name"] == "confirm_product":
-                                print("\033[93mPedido creado, redirigiendo a conversation_agent\033[0m")
-                                state.node_history.append("conversation_agent")
-                                return state
-                print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
-                state.node_history.append("order_data_agent")
-                return state
-            elif last_node == "update_order_agent":
-                # Verificar si hay suficientes mensajes para revisar
-                if len(state.messages) >= 4:
-                    # Obtener el cuarto mensaje desde el final
-                    fourth_last_message = state.messages[-4]
-                    # Verificar si es un AIMessage y tiene tool_calls
-                    if hasattr(fourth_last_message, 'tool_calls') and fourth_last_message.tool_calls:
-                        for tool_call in fourth_last_message.tool_calls:
-                            if tool_call["name"] == "add_products_to_order":
-                                print("\033[93mProductos añadidos a la orden, redirigiendo a conversation_agent\033[0m")
-                                state.node_history.append("conversation_agent")
-                                return state
-                print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
-                state.node_history.append("update_order_agent")
-                return state
-        
         # Obtener la última orden del cliente si hay un número de teléfono
         last_order_info = "No hay información de órdenes previas."
         if state.phone:
@@ -292,6 +260,150 @@ class LangGraphAgent:
             except Exception as e:
                 print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
 
+        # Verificar el último nodo visitado
+        if state.node_history:
+            last_node = state.node_history[-1]
+            if last_node == "order_data_agent":
+                # Si ya se usó la tool confirm_product, usar el modelo para detectar la intención
+                if len(state.messages) >= 4:
+                    last_message = state.messages[-4]
+                    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                        for tool_call in last_message.tool_calls:
+                            if tool_call["name"] == "confirm_product":
+                                print("\033[93mPedido creado, detectando intención del usuario\033[0m")
+                                # Preparar el prompt para el LLM
+                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
+                                    agent_name="Orchestrator",
+                                    last_order_info=last_order_info,
+                                    current_date_and_time=current_time
+                                )
+                                
+                                # Limitar mensajes a los últimos 10
+                                recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+                                messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
+
+                                # Invocar el modelo para obtener la intención
+                                response = await self.llm.ainvoke(dump_messages(messages))
+                                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+                                
+                                try:
+                                    # Obtener el contenido de la respuesta
+                                    content = response.content.strip()
+                                    
+                                    # Intentar extraer el nodo de diferentes formatos posibles
+                                    intent = None
+                                    
+                                    # Si es un JSON string, intentar parsearlo
+                                    if content.startswith('{') or content.startswith('```json'):
+                                        import json
+                                        # Limpiar el string de markdown si es necesario
+                                        json_str = content.replace('```json', '').replace('```', '').strip()
+                                        try:
+                                            parsed = json.loads(json_str)
+                                            # Intentar obtener el nodo de diferentes claves posibles
+                                            intent = parsed.get('node') or parsed.get('intention') or parsed.get('response')
+                                        except json.JSONDecodeError:
+                                            pass
+                                    
+                                    # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
+                                    if not intent:
+                                        # Buscar uno de los nodos válidos en el texto
+                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                                        for node in valid_nodes:
+                                            if node in content:
+                                                intent = node
+                                                break
+                                    
+                                    # Si la intención es order_data_agent o update_order_agent, redirigir a update_order_agent
+                                    if intent in ["order_data_agent", "update_order_agent"]:
+                                        print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
+                                        state.node_history.append("update_order_agent")
+                                        return state
+                                    else:
+                                        print("\033[93mRedirigiendo a conversation_agent\033[0m")
+                                        state.node_history.append("conversation_agent")
+                                        return state
+                                        
+                                except Exception as e:
+                                    print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
+                                    state.node_history.append("conversation_agent")
+                                    return state
+                print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
+                state.node_history.append("order_data_agent")
+                return state
+            elif last_node == "update_order_agent":
+                # Verificar si hay suficientes mensajes para revisar
+                if len(state.messages) >= 4:
+                    # Obtener el cuarto mensaje desde el final
+                    fourth_last_message = state.messages[-4]
+                    # Verificar si es un AIMessage y tiene tool_calls
+                    if hasattr(fourth_last_message, 'tool_calls') and fourth_last_message.tool_calls:
+                        for tool_call in fourth_last_message.tool_calls:
+                            if tool_call["name"] == "add_products_to_order":
+                                print("\033[93mProductos añadidos a la orden, detectando intención del usuario\033[0m")
+                                # Preparar el prompt para el LLM
+                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
+                                    agent_name="Orchestrator",
+                                    last_order_info=last_order_info,
+                                    current_date_and_time=current_time
+                                )
+                                
+                                # Limitar mensajes a los últimos 10
+                                recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+                                messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
+
+                                # Invocar el modelo para obtener la intención
+                                response = await self.llm.ainvoke(dump_messages(messages))
+                                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+                                
+                                try:
+                                    # Obtener el contenido de la respuesta
+                                    content = response.content.strip()
+                                    
+                                    # Intentar extraer el nodo de diferentes formatos posibles
+                                    intent = None
+                                    
+                                    # Si es un JSON string, intentar parsearlo
+                                    if content.startswith('{') or content.startswith('```json'):
+                                        import json
+                                        # Limpiar el string de markdown si es necesario
+                                        json_str = content.replace('```json', '').replace('```', '').strip()
+                                        try:
+                                            parsed = json.loads(json_str)
+                                            # Intentar obtener el nodo de diferentes claves posibles
+                                            intent = parsed.get('node') or parsed.get('intention') or parsed.get('response')
+                                        except json.JSONDecodeError:
+                                            pass
+                                    
+                                    # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
+                                    if not intent:
+                                        # Buscar uno de los nodos válidos en el texto
+                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                                        for node in valid_nodes:
+                                            if node in content:
+                                                intent = node
+                                                break
+                                    
+                                    # Si la intención es order_data_agent o update_order_agent, redirigir a update_order_agent
+                                    if intent in ["order_data_agent", "update_order_agent"]:
+                                        print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
+                                        state.node_history.append("update_order_agent")
+                                        return state
+                                    else:
+                                        print("\033[93mRedirigiendo a conversation_agent\033[0m")
+                                        state.node_history.append("conversation_agent")
+                                        return state
+                                        
+                                except Exception as e:
+                                    print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
+                                    state.node_history.append("conversation_agent")
+                                    return state
+                print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
+                state.node_history.append("update_order_agent")
+                return state
+        
         # Preparar el prompt para el LLM con la información de la orden
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
