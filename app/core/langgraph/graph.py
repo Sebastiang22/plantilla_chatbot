@@ -207,6 +207,65 @@ class LangGraphAgent:
         for tool_call in state.messages[-1].tool_calls:
             print(f"\033[94m[tool] Ejecutando: {tool_call['name']} con args: {tool_call['args']}\033[0m")
             
+            # Add state to the tool arguments if the tool is confirm_product
+            if tool_call["name"] == "confirm_product":
+                # Get phone from the state dictionary
+                phone = state.phone
+                if not phone:
+                    raise ValueError("Phone number is required for confirm_product tool")
+                tool_call["args"]["state"] = {"phone": phone}
+            
+            # Verificar los argumentos requeridos para add_products_to_order
+            if tool_call["name"] == "add_products_to_order":
+                # Asegurarse de que el phone esté disponible
+                if state.phone and not tool_call["args"].get("phone"):
+                    tool_call["args"]["phone"] = state.phone
+                
+                # Verificar que exista el parámetro products
+                if not tool_call["args"].get("products"):
+                    print("\033[93mError: Falta el parámetro 'products' en add_products_to_order\033[0m")
+                    # En lugar de lanzar un error, proporcionar una respuesta de error
+                    outputs.append(
+                        ToolMessage(
+                            content=str({
+                                "message": "Error: Falta el parámetro 'products' requerido para añadir productos a la orden",
+                                "error": True
+                            }),
+                            name=tool_call["name"],
+                            tool_call_id=tool_call["id"],
+                        )
+                    )
+                    continue
+            
+            # Verificar los argumentos requeridos para update_order_product
+            if tool_call["name"] == "update_order_product":
+                # Asegurarse de que el phone esté disponible
+                if state.phone and not tool_call["args"].get("phone"):
+                    tool_call["args"]["phone"] = state.phone
+                
+                # Verificar que existan los parámetros requeridos
+                missing_params = []
+                if not tool_call["args"].get("product_name"):
+                    missing_params.append("product_name")
+                if not tool_call["args"].get("new_data"):
+                    missing_params.append("new_data")
+                
+                if missing_params:
+                    params_str = ", ".join(missing_params)
+                    print(f"\033[93mError: Faltan los parámetros '{params_str}' en update_order_product\033[0m")
+                    # En lugar de lanzar un error, proporcionar una respuesta de error
+                    outputs.append(
+                        ToolMessage(
+                            content=str({
+                                "message": f"Error: Faltan parámetros requeridos ({params_str}) para modificar el producto",
+                                "error": True
+                            }),
+                            name=tool_call["name"],
+                            tool_call_id=tool_call["id"],
+                        )
+                    )
+                    continue
+            
             try:
                 tool_result = await self.tools_by_name[tool_call["name"]].ainvoke(tool_call["args"])
                 outputs.append(
