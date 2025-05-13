@@ -318,11 +318,20 @@ class LangGraphAgent:
                 last_order = await order_service.get_last_order(state.phone)
                 print(f"\033[96m[last_order]: {last_order}\033[0m")
                 if last_order:
+                    product_info = [
+                        f"{product['name']} - Cantidad: {product['quantity']} - Precio: ${product['unit_price']} - Subtotal: ${product['subtotal']}"
+                        for product in last_order['products']
+                    ]
+                    
                     last_order_info = f"""
                     Estado de la última orden: {last_order['status']}
                     Fecha: {last_order['created_at']}
-                    Productos: {[product['name'] for product in last_order['products']]}
-                    Total: {last_order['total_amount']}
+                    Dirección: {last_order.get('address', 'No disponible')}
+                    
+                    Productos:
+                    {chr(10).join(f"- {item}" for item in product_info)}
+                    
+                    Total: ${last_order['total_amount']}
                     """
             except Exception as e:
                 print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
@@ -609,13 +618,24 @@ class LangGraphAgent:
             try:
                 order_service = OrderService()
                 last_order = await order_service.get_last_order(state.phone)
+                print(f"\033[96m[last_order]: {last_order}\033[0m")
                 if last_order:
+                    product_info = [
+                        f"{product['name']} - Cantidad: {product['quantity']} - Precio: ${product['unit_price']} - Subtotal: ${product['subtotal']}"
+                        for product in last_order['products']
+                    ]
+                    
                     last_order_info = f"""
                     Estado de la última orden: {last_order['status']}
                     Fecha: {last_order['created_at']}
-                    Productos: {[product['name'] for product in last_order['products']]}
-                    Total: {last_order['total_amount']}
+                    Dirección: {last_order.get('address', 'No disponible')}
+                    
+                    Productos:
+                    {chr(10).join(f"- {item}" for item in product_info)}
+                    
+                    Total: ${last_order['total_amount']}
                     """
+                    print(f"\033[96m[last_order_info]: {last_order_info}\033[0m")
             except Exception as e:
                 print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
 
