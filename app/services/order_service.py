@@ -6,9 +6,14 @@ from datetime import datetime
 from sqlmodel import Session, select
 from fastapi import HTTPException
 from sqlalchemy.orm import selectinload
+import uuid
+import logging
 
 from models.order import Order, OrderItem
 from services.database import database_service
+
+# Configurar el logger
+logger = logging.getLogger(__name__)
 
 class OrderService:
     """Servicio para la gestión de pedidos.
@@ -101,7 +106,7 @@ class OrderService:
             return session.exec(statement).all()
     
     async def update_order_status(self, order_id: UUID, status: str) -> Order:
-        """Actualiza el estado de un pedido.
+        """Actualiza el estado de un pedido y crea un thread si se marca como completado.
         
         Args:
             order_id: ID del pedido
@@ -113,17 +118,69 @@ class OrderService:
         Raises:
             HTTPException: Si el pedido no existe o hay un error al actualizarlo
         """
-        with Session(self.db.engine) as session:
-            order = session.get(Order, order_id)
-            if not order:
-                raise HTTPException(status_code=404, detail="Pedido no encontrado")
-            
-            order.status = status
-            order.updated_at = datetime.utcnow()
-            session.add(order)
-            session.commit()
-            session.refresh(order)
-            return order
+        try:
+            with Session(self.db.engine) as session:
+                logger.info(
+                    f"Iniciando actualización de estado para orden {str(order_id)} a {status}"
+                )
+
+                order = session.get(Order, order_id)
+                if not order:
+                    logger.error(f"Orden no encontrada: {str(order_id)}")
+                    raise HTTPException(status_code=404, detail="Pedido no encontrado")
+                
+                previous_status = order.status
+                normalized_status = status.lower()
+                normalized_previous = previous_status.lower()
+                
+                logger.info(
+                    f"Cambiando estado de orden {str(order_id)} de {previous_status} a {status}"
+                )
+                
+                order.status = status
+                order.updated_at = datetime.utcnow()
+                session.add(order)
+                session.commit()
+                session.refresh(order)
+                
+                # Si el estado cambió a 'completed' o 'completado', crear un nuevo thread
+                if (normalized_status in ['completed', 'completado'] and 
+                    normalized_previous not in ['completed', 'completado']):
+                    try:
+                        # Obtener el teléfono del usuario de la orden
+                        customer_phone = order.customer_id
+                        
+                        if not customer_phone:
+                            logger.error(f"No se encontró teléfono para la orden {str(order_id)}")
+                            return order
+                        
+                        # Obtener el usuario existente
+                        user = await database_service.get_user_by_phone(customer_phone)
+                        if not user:
+                            logger.error(f"No se encontró usuario para el teléfono {customer_phone}")
+                            return order
+                        
+                        # Crear nuevo thread con ID único
+                        thread_id = str(uuid.uuid4())
+                        thread = await database_service.create_thread(thread_id, user.id)
+                        
+                        logger.info(
+                            f"Thread creado: {thread.id} para usuario {user.id} y orden {str(order.id)}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error al crear thread para orden {str(order.id)}: {str(e)}"
+                        )
+                        # No lanzamos la excepción para no afectar la actualización del estado
+                
+                return order
+                
+        except Exception as e:
+            logger.error(f"Error al actualizar estado de orden {str(order_id)}: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al actualizar el estado del pedido: {str(e)}"
+            )
     
     async def delete_order(self, order_id: UUID) -> bool:
         """Elimina un pedido y sus items.

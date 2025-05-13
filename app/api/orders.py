@@ -6,10 +6,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from models.user import User
 from sqlmodel import select
+from uuid import UUID
+import logging
 
 from services.order_service import order_service
 
 router = APIRouter(tags=["orders"])
+
+logger = logging.getLogger(__name__)
 
 class OrderStatusUpdate(BaseModel):
     """Modelo para actualizar el estado de una orden."""
@@ -88,17 +92,73 @@ async def update_order_state(status_update: OrderStatusUpdate):
         Dict[str, Any]: Respuesta con el resultado de la actualización
     """
     try:
-        order = await order_service.update_order_status(status_update.order_id, status_update.state)
-        return {
-            "message": "Estado actualizado correctamente",
-            "order": {
-                "id": str(order.id),
-                "state": order.status,
-                "updated_at": order.updated_at.isoformat()
+        # Log de los datos recibidos
+        logger.info(
+            f"Actualizando estado de orden: {status_update.order_id} a {status_update.state}"
+        )
+
+        # Validar que el order_id sea un UUID válido
+        try:
+            order_uuid = UUID(status_update.order_id)
+        except ValueError as e:
+            logger.error(
+                f"ID de orden inválido: {status_update.order_id} - Error: {str(e)}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"ID de orden inválido: {str(e)}"
+            )
+
+        # Validar que el estado sea uno de los permitidos
+        valid_states = [
+            "pending", "preparing", "completed",  # Estados en inglés
+            "pendiente", "preparando", "completado",  # Estados en español
+            "en preparación"  # Agregamos el nuevo estado
+        ]
+        
+        if status_update.state.lower() not in [s.lower() for s in valid_states]:
+            logger.error(
+                f"Estado inválido: {status_update.state}. Estados permitidos: {', '.join(valid_states)}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estado inválido. Estados permitidos: {', '.join(valid_states)}"
+            )
+
+        # Intentar actualizar el estado
+        try:
+            order = await order_service.update_order_status(order_uuid, status_update.state)
+            logger.info(
+                f"Estado de orden actualizado exitosamente: {str(order.id)} - Nuevo estado: {order.status}"
+            )
+            return {
+                "message": "Estado actualizado correctamente",
+                "order": {
+                    "id": str(order.id),
+                    "state": order.status,
+                    "updated_at": order.updated_at.isoformat()
+                }
             }
-        }
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            logger.error(
+                f"Error al actualizar estado de orden {status_update.order_id}: {str(e)}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al actualizar el estado de la orden: {str(e)}"
+            )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(
+            f"Error inesperado: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error inesperado: {str(e)}"
+        )
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: str):
