@@ -331,6 +331,24 @@ class OrderService:
             statement = select(Order).options(selectinload(Order.items)).order_by(Order.created_at.desc())
             return session.exec(statement).all()
 
+    async def get_orders_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Order]:
+        """Obtiene todos los pedidos en un rango de fechas específico.
+        
+        Args:
+            start_date: Fecha inicial
+            end_date: Fecha final
+            
+        Returns:
+            List[Order]: Lista de pedidos en el rango de fechas
+        """
+        with Session(self.db.engine) as session:
+            statement = select(Order).options(selectinload(Order.items)).where(
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            ).order_by(Order.created_at.desc())
+            
+            return session.exec(statement).all()
+
     async def update_order_product(self, order_id: UUID, product_name: str, new_data: Dict[str, Any]) -> Dict[str, Any]:
         """Modifica los datos de un producto específico en una orden.
         

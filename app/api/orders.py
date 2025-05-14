@@ -30,6 +30,77 @@ class OrderResponse(BaseModel):
     updated_at: str
     state: str
 
+@router.get("/by-date", response_model=Dict[str, Any])
+async def get_orders_by_date(
+    start_date: str = None,
+    end_date: str = None
+):
+    """Obtiene las órdenes en un rango de fechas específico.
+    
+    Args:
+        start_date: Fecha inicial en formato ISO (YYYY-MM-DD). Si no se especifica, 
+                   se usará la fecha actual menos 30 días.
+        end_date: Fecha final en formato ISO (YYYY-MM-DD). Si no se especifica,
+                 se usará la fecha actual.
+    
+    Returns:
+        Dict[str, Any]: Diccionario con estadísticas y lista de órdenes
+    """
+    try:
+        # Convertir fechas o usar valores predeterminados (últimos 30 días)
+        if start_date:
+            start = datetime.fromisoformat(start_date)
+        else:
+            start = datetime.now() - timedelta(days=30)
+            
+        if end_date:
+            end = datetime.fromisoformat(end_date) + timedelta(days=1)  # Añadir 1 día para incluir toda la fecha final
+        else:
+            end = datetime.now() + timedelta(days=1)  # Incluir órdenes de hoy
+        
+        # Obtener órdenes en el rango de fechas
+        orders = await order_service.get_orders_by_date_range(start, end)
+        
+        # Obtener los nombres de los usuarios relacionados (igual que en get_today_orders)
+        customer_phones = [order.customer_id for order in orders]
+        with order_service.db.engine.connect() as conn:
+            users = conn.execute(select(User).where(User.phone.in_(customer_phones))).fetchall()
+            user_map = {user.phone: user.name for user in users}
+        
+        # Calcular estadísticas
+        total_orders = len(orders)
+        pending_orders = len([o for o in orders if o.status == "pendiente"])
+        complete_orders = len([o for o in orders if o.status == "completado"])
+        
+        return {
+            "stats": {
+                "total_orders": total_orders,
+                "pending_orders": pending_orders,
+                "complete_orders": complete_orders
+            },
+            "orders": [
+                {
+                    "id": str(order.id),
+                    "address": order.address,
+                    "customer_name": user_map.get(order.customer_id, order.customer_id),
+                    "products": [
+                        {
+                            "name": item.product_name,
+                            "quantity": item.quantity,
+                            "price": item.unit_price
+                        }
+                        for item in order.items
+                    ],
+                    "created_at": order.created_at.isoformat(),
+                    "updated_at": order.updated_at.isoformat(),
+                    "state": order.status
+                }
+                for order in orders
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/today", response_model=Dict[str, Any])
 async def get_today_orders():
     """Obtiene las órdenes del día actual.
@@ -192,3 +263,4 @@ async def check_websocket_status():
         return {"status": "online"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
+    

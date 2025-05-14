@@ -30,6 +30,8 @@ import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/status-badge"
 import { Order, OrderState, OrderCallback, OrderStatusCallback, OrderDeleteCallback } from "@/lib/types"
 import { formatDate, formatCOP } from "@/lib/utils/format"
+import { DateFilter } from "./date-filter"
+import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter"
 
 interface OrdersListProps {
   orders: Order[]
@@ -76,6 +78,24 @@ export function OrdersList({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+
+  // Usar el hook de filtrado por fecha
+  const {
+    dateRange,
+    orders: dateFilteredOrders,
+    isLoading: isLoadingDates,
+    error: dateFilterError,
+    fetchOrdersByDateRange
+  } = useOrdersDateFilter();
+
+  // Determinar qué órdenes mostrar (las del filtro de fecha si existen, o las originales)
+  const displayOrders = dateFilteredOrders || orders;
+  
+  // Determinar si estamos en estado de carga
+  const showLoading = isLoading || isLoadingDates;
+  
+  // Combinar errores
+  const displayError = error || dateFilterError;
 
   // Función para manejar el cambio en el filtro de estado
   const handleStatusFilterChange = (status: string | null) => {
@@ -306,7 +326,7 @@ export function OrdersList({
   };
 
   const table = useReactTable({
-    data: orders,
+    data: displayOrders || [], // Usar las órdenes filtradas por fecha o las originales
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -329,7 +349,7 @@ export function OrdersList({
   })
 
   // Renderizar estado de carga o error
-  if (isLoading) {
+  if (showLoading) {
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -338,11 +358,11 @@ export function OrdersList({
     )
   }
 
-  if (error) {
+  if (displayError) {
     return (
       <div className="border border-red-300 bg-red-50 dark:bg-red-900/20 p-4 rounded-md">
         <p className="text-red-500 dark:text-red-400">
-          Error: {error}
+          Error: {displayError}
         </p>
         <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
           Reintentar
@@ -366,6 +386,12 @@ export function OrdersList({
               onChange={handleSearch}
             />
           </div>
+          {/* Añadir el filtro de fechas */}
+          <DateFilter 
+            onDateChange={(startDate, endDate) => {
+              fetchOrdersByDateRange({ startDate, endDate });
+            }}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="ml-auto">
