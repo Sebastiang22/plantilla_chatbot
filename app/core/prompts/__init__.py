@@ -30,17 +30,42 @@ def load_orchestrator_prompt() -> str:
 def load_update_order_prompt() -> str:
     """
     Carga el prompt de actualización de pedidos con valores por defecto.
+    
+    Importante: Este prompt contiene marcadores de posición {client_name}, {last_order_info}
+    y {current_date_and_time} que deben ser reemplazados antes de usar el prompt.
     """
+    # Cargar el prompt sin formatear para preservar los marcadores de posición
     prompt = load_prompt("system_update_order.md")
-    return prompt.format(
-        last_order_info="No hay información de órdenes previas.",
-        current_date_and_time=""
-    )
+    return prompt  # Retornar el prompt sin formatear
+
+
+def load_conversation_prompt() -> str:
+    """
+    Carga el prompt de conversación con valores por defecto.
+    
+    Importante: Este prompt contiene marcadores de posición {client_name} y {current_date_and_time}
+    que deben ser reemplazados antes de usar el prompt.
+    """
+    # Cargar el prompt sin formatear para preservar los marcadores de posición
+    prompt = load_prompt("system_conversation.md")
+    return prompt  # Retornar el prompt sin formatear
+
+
+def load_order_data_prompt() -> str:
+    """
+    Carga el prompt de datos de pedido con valores por defecto.
+    
+    Importante: Este prompt contiene marcadores de posición {client_name}, {previous_address} 
+    y {current_date_and_time} que deben ser reemplazados antes de usar el prompt.
+    """
+    # Cargar el prompt sin formatear para preservar los marcadores de posición
+    prompt = load_prompt("system_order_data.md")
+    return prompt  # Retornar el prompt sin formatear
 
 
 # Cargar todos los prompts
-SYSTEM_PROMPT_CONVERSATION = load_prompt("system_conversation.md")
-SYSTEM_PROMPT_ORDER_DATA = load_prompt("system_order_data.md")
+SYSTEM_PROMPT_CONVERSATION = load_conversation_prompt()
+SYSTEM_PROMPT_ORDER_DATA = load_order_data_prompt()
 SYSTEM_PROMPT_UPDATE_ORDER = load_update_order_prompt()
 SYSTEM_PROMPT_PQRS = load_prompt("system_pqrs.md")
 SYSTEM_PROMPT_ORCHESTRATOR = load_orchestrator_prompt()

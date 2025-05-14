@@ -46,6 +46,7 @@ from core.langgraph.tools import (get_menu_tool,
                                     send_menu_images,
                                     send_location_tool)
 from services.order_service import OrderService
+from services.database import database_service
 
 from core.logging import logger
 from core.prompts import (
@@ -552,9 +553,44 @@ class LangGraphAgent:
         print("\033[92m[conversation_agent] Entrando al agente de conversación\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
 
+        # Obtener el nombre del cliente y la dirección del último pedido si están disponibles
+        client_name = None
+        if state.phone:
+            try:
+                user_details = await database_service.get_user_details_with_latest_order(state.phone)
+                print(f"\033[96m[User details from database]: {user_details}\033[0m")
+                if user_details and user_details["name"]:
+                    client_name = user_details["name"]
+                    print(f"\033[96m[Nombre del cliente detectado]: {client_name}\033[0m")
+            except Exception as e:
+                print(f"\033[93mError al obtener detalles del usuario: {str(e)}\033[0m")
+
+        # Formatear el prompt con el nombre del cliente y la fecha actual
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_prompt = SYSTEM_PROMPT_CONVERSATION.format(
+            client_name=client_name or "Cliente",
+            current_date_and_time=current_time
+        )
+        
+        # Mostrar las primeras 200 caracteres del prompt formateado para depuración
+        prompt_preview = formatted_prompt[:200] + "..." if len(formatted_prompt) > 200 else formatted_prompt
+        print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
+        
+        # Verificar explícitamente si el nombre del cliente está en el prompt
+        if client_name and client_name in formatted_prompt:
+            print(f"\033[92m[✓] Nombre '{client_name}' incluido en el prompt\033[0m")
+        else:
+            print(f"\033[91m[✗] Nombre del cliente NO encontrado en el prompt formateado\033[0m")
+
         # Limitar mensajes a los últimos 10
         recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
-        messages = prepare_messages(recent_messages, self.llm, SYSTEM_PROMPT_CONVERSATION)
+        messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
+        
+        # Mostrar los primeros mensajes para depuración
+        if messages:
+            first_message = messages[0]
+            print(f"\033[95m[Primer mensaje enviado al LLM]: Tipo: {type(first_message)}, Contenido: {str(first_message)[:200]}...\033[0m")
+        
         llm_with_tools = self.llm.bind_tools(self.agent_tools["conversation_agent"])
         ai_message = await llm_with_tools.ainvoke(dump_messages(messages))
         if hasattr(ai_message, 'tool_calls') and ai_message.tool_calls:
@@ -580,9 +616,61 @@ class LangGraphAgent:
         print("\033[92m[order_data_agent] Entrando al agente de datos de pedido\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         
+        # Obtener el nombre del cliente y la dirección del último pedido si están disponibles
+        client_name = None
+        previous_address = None
+        if state.phone:
+            try:
+                user_details = await database_service.get_user_details_with_latest_order(state.phone)
+                # Imprimir la estructura completa para depuración
+                print(f"\033[96m[User details from database (COMPLETO)]: {user_details}\033[0m")
+                
+                if user_details and user_details["name"]:
+                    client_name = user_details["name"]
+                    print(f"\033[96m[Nombre del cliente detectado]: {client_name}\033[0m")
+                
+                # Verificar todas las posibles ubicaciones de la dirección
+                if user_details:
+                    # Intento 1: Dirección en el nivel principal
+                    if "address" in user_details and user_details["address"]:
+                        previous_address = user_details["address"]
+                        print(f"\033[96m[Dirección encontrada en nivel principal]: {previous_address}\033[0m")
+                    
+                    # Intento 2: Dirección dentro de "order"
+                    elif "order" in user_details and user_details["order"] and "address" in user_details["order"]:
+                        previous_address = user_details["order"]["address"]
+                        print(f"\033[96m[Dirección encontrada en 'order']: {previous_address}\033[0m")
+                    
+                    # Intento 3: Dirección dentro de "has_order"
+                    elif "has_order" in user_details and user_details["has_order"] and "order" in user_details:
+                        if "address" in user_details["order"]:
+                            previous_address = user_details["order"]["address"]
+                            print(f"\033[96m[Dirección encontrada en 'order' con has_order=True]: {previous_address}\033[0m")
+                    
+                    # Si no se encuentra la dirección
+                    if not previous_address:
+                        print("\033[93m[ADVERTENCIA] No se pudo encontrar la dirección en los detalles del usuario\033[0m")
+                else:
+                    print("\033[93m[ADVERTENCIA] No se encontraron detalles del usuario\033[0m")
+                    
+            except Exception as e:
+                print(f"\033[93mError al obtener detalles del usuario: {str(e)}\033[0m")
+        
+        # Formatear el prompt con los datos del cliente y la fecha actual
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        formatted_prompt = SYSTEM_PROMPT_ORDER_DATA.format(
+            client_name=client_name or "Cliente",
+            previous_address=previous_address or "No disponible",
+            current_date_and_time=current_time
+        )
+        
+        # Mostrar las primeras 200 caracteres del prompt formateado para depuración
+        prompt_preview = formatted_prompt[:200] + "..." if len(formatted_prompt) > 200 else formatted_prompt
+        print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
+        
         # Limitar mensajes a los últimos 10
         recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
-        messages = prepare_messages(recent_messages, self.llm, SYSTEM_PROMPT_ORDER_DATA)
+        messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
         llm_with_tools = self.llm.bind_tools(self.agent_tools["order_data_agent"])
         response_msg = await llm_with_tools.ainvoke(dump_messages(messages))
         
@@ -592,6 +680,18 @@ class LangGraphAgent:
                 if tool_call["name"] == "confirm_product":
                     print(f"\033[32m Tool Call: {tool_call['name']} \033[0m")
                     arguments = tool_call["args"]
+                    
+                    # Si no se proporcionó un nombre pero tenemos uno en la base de datos, usarlo
+                    if client_name and (not arguments.get("name") or arguments.get("name") == "Cliente"):
+                        arguments["name"] = client_name
+                        print(f"\033[32m Añadido nombre {client_name} a confirm_product\033[0m")
+                    
+                    # Si no se proporcionó una dirección pero tenemos una anterior, usarla
+                    if previous_address and (not arguments.get("address") or arguments.get("address") == "No disponible"):
+                        arguments["address"] = previous_address
+                        print(f"\033[32m Añadido dirección anterior {previous_address} a confirm_product\033[0m")
+                    
+                    # Asegurar que se incluye el teléfono
                     arguments["phone"] = state.phone
         
         generated_state = {"messages": [response_msg]}
@@ -611,6 +711,18 @@ class LangGraphAgent:
         """
         print("\033[92m[update_order_agent] Entrando al agente de actualización de pedidos\033[0m")
         print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        
+        # Obtener el nombre del cliente
+        client_name = None
+        if state.phone:
+            try:
+                user_details = await database_service.get_user_details_with_latest_order(state.phone)
+                print(f"\033[96m[User details from database]: {user_details}\033[0m")
+                if user_details and user_details["name"]:
+                    client_name = user_details["name"]
+                    print(f"\033[96m[Nombre del cliente detectado]: {client_name}\033[0m")
+            except Exception as e:
+                print(f"\033[93mError al obtener detalles del usuario: {str(e)}\033[0m")
         
         # Obtener la última orden del cliente
         last_order_info = "No hay información de órdenes previas."
@@ -642,9 +754,14 @@ class LangGraphAgent:
         # Preparar el prompt con la información de la orden
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_prompt = SYSTEM_PROMPT_UPDATE_ORDER.format(
+            client_name=client_name or "Cliente",
             last_order_info=last_order_info,
             current_date_and_time=current_time
         )
+        
+        # Mostrar las primeras 200 caracteres del prompt formateado para depuración
+        prompt_preview = formatted_prompt[:200] + "..." if len(formatted_prompt) > 200 else formatted_prompt
+        print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
         
         # Limitar mensajes a los últimos 10
         recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages

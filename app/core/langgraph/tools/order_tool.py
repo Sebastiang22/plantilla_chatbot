@@ -15,60 +15,74 @@ def confirm_product(
     address: str,
     products: List[Dict[str, Any]]
 ) -> dict:
-    """
-    Confirma múltiples productos en la base de datos creando un nuevo pedido.
+    """Confirma un pedido con los productos seleccionados.
     
     Args:
-        phone: Teléfono del usuario
+        phone: Número de teléfono del cliente
         name: Nombre del cliente
         address: Dirección de entrega
-        products: Lista de diccionarios con la información de cada producto
-                 Cada diccionario debe contener:
-                 - product_name: Nombre del producto
-                 - quantity: Cantidad del producto
-                 - unit_price: Precio unitario del producto
-                 - subtotal: Subtotal del item (quantity * unit_price)
-                 - details: Observaciones o detalles específicos del producto (opcional)
-        
+        products: Lista de productos con sus detalles
+            Cada producto debe contener: product_name, quantity, unit_price, subtotal, details (opcional)
+    
     Returns:
-        dict: Información del pedido creado con todos sus productos
+        dict: Resultado de la operación con los detalles del pedido
     """
-    # Actualizar el nombre del usuario
-    user = asyncio.run(database_service.get_user_by_phone(phone))
-    if user:
-        asyncio.run(database_service.update_user_name(user.id, name))
-    
-    order_service = OrderService()
-    order = asyncio.run(
-        order_service.create_order(
-            customer_id=phone,
-            address=address,
-            products=products
-        )
-    )
-    
-    # Cargar los items dentro de una nueva sesión
-    with Session(database_service.engine) as session:
-        session.add(order)
-        session.refresh(order)
-        items_data = [
-            {
-                "name": item.product_name,
-                "quantity": item.quantity,
-                "unit_price": item.unit_price,
-                "subtotal": item.subtotal,
-                "details": item.details
+    try:
+        print(f"\033[96m[confirm_product] Procesando pedido para {name} (tel: {phone})\033[0m")
+        
+        # Validar la dirección - asegurar que no esté vacía
+        if not address or address.strip() == "" or address.lower() == "no disponible":
+            print(f"\033[93m[confirm_product] Dirección vacía o no disponible: '{address}'. Solicitando al usuario.\033[0m")
+            return {
+                "message": "Para completar tu pedido, necesito una dirección de entrega válida. ¿Podrías proporcionarme tu dirección por favor?",
+                "status": "address_required"
             }
-            for item in order.items
-        ]
-    
-    return {
-        "order_id": str(order.id),
-        "status": order.status,
-        "total_amount": order.total_amount,
-        "address": order.address,
-        "products": items_data
-    }
+            
+        print(f"\033[96m[confirm_product] Dirección recibida: '{address}'\033[0m")
+        print(f"\033[96m[confirm_product] Productos: {products}\033[0m")
+        
+        # Actualizar el nombre del usuario
+        user = asyncio.run(database_service.get_user_by_phone(phone))
+        if user:
+            asyncio.run(database_service.update_user_name(user.id, name))
+        
+        order_service = OrderService()
+        order = asyncio.run(
+            order_service.create_order(
+                customer_id=phone,
+                address=address,
+                products=products
+            )
+        )
+        
+        # Cargar los items dentro de una nueva sesión
+        with Session(database_service.engine) as session:
+            session.add(order)
+            session.refresh(order)
+            items_data = [
+                {
+                    "name": item.product_name,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "subtotal": item.subtotal,
+                    "details": item.details
+                }
+                for item in order.items
+            ]
+        
+        # Loguear información de orden creada con dirección
+        print(f"\033[96m[confirm_product] Orden creada - ID: {order.id}, Address: '{order.address}'\033[0m")
+        
+        return {
+            "order_id": str(order.id),
+            "status": order.status,
+            "total_amount": order.total_amount,
+            "address": order.address,
+            "products": items_data
+        }
+    except Exception as e:
+        print(f"\033[91m[confirm_product] Error: {str(e)}\033[0m")
+        return {"message": f"Error al procesar el pedido: {str(e)}", "status": "error"}
 
 @tool
 def get_last_order(phone: str) -> dict:

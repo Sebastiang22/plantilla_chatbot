@@ -3,6 +3,8 @@
 from typing import (
     List,
     Optional,
+    Dict,
+    Any,
 )
 
 from fastapi import HTTPException
@@ -22,6 +24,7 @@ from core.config import (
 from core.logging import logger
 from models.user import User
 from models.thread import Thread
+from models.order import Order
 
 
 class DatabaseService:
@@ -159,6 +162,87 @@ class DatabaseService:
                 session.refresh(user)
                 logger.info("user_name_updated", user_id=user_id, new_name=name)
             return user
+
+    async def get_user_details_with_latest_order(self, phone: str) -> Dict[str, Any]:
+        """Obtiene el nombre del usuario y la dirección de su último pedido si está disponible.
+        
+        Args:
+            phone: Número telefónico del usuario
+            
+        Returns:
+            Dict[str, Any]: Diccionario con el nombre del usuario y la dirección del último pedido
+        """
+        # Preparar resultado por defecto
+        result = {
+            "name": None,
+            "address": None,
+            "user_id": None,
+            "has_order": False
+        }
+        
+        try:
+            with Session(self.engine) as session:
+                # Buscar el usuario por teléfono
+                user_statement = select(User).where(User.phone == phone)
+                user = session.exec(user_statement).first()
+                
+                if not user:
+                    logger.warn(f"Usuario no encontrado con teléfono: {phone}")
+                    return result
+                
+                # Actualizar resultado con datos del usuario
+                result["name"] = user.name
+                result["user_id"] = user.id
+                
+                logger.info(f"Usuario encontrado: {user.name} (ID: {user.id})")
+                
+                # IMPORTANTE: Buscar la orden usando el número de teléfono como customer_id
+                # Ya que es lo que se guarda en la base de datos según la imagen
+                try:
+                    # Buscar orden usando el teléfono (que es lo que se usa como customer_id)
+                    order_statement = (
+                        select(Order)
+                        .where(Order.customer_id == phone)  # Usar phone directamente
+                        .order_by(Order.created_at.desc())
+                        .limit(1)
+                    )
+                    
+                    logger.info(f"Buscando órdenes con customer_id={phone}")
+                    latest_order = session.exec(order_statement).first()
+                    
+                    # Si se encontró una orden
+                    if latest_order:
+                        logger.info(f"Orden encontrada: ID={latest_order.id}, Address={latest_order.address!r}")
+                        result["has_order"] = True
+                        
+                        # Verificar si la dirección tiene valor
+                        if latest_order.address and latest_order.address.strip():
+                            result["address"] = latest_order.address.strip()
+                            logger.info(f"Dirección encontrada: {result['address']!r}")
+                        else:
+                            logger.warn("La dirección en la orden está vacía")
+                        
+                        # Incluir detalles de la orden
+                        result["order"] = {
+                            "order_id": str(latest_order.id),
+                            "status": latest_order.status,
+                            "customer_id": latest_order.customer_id,
+                            "address": result["address"],
+                            "total_amount": latest_order.total_amount,
+                            "created_at": latest_order.created_at.isoformat() if latest_order.created_at else None
+                        }
+                    else:
+                        logger.warn(f"No se encontraron órdenes para el teléfono {phone}")
+                except Exception as e:
+                    logger.error(f"Error al buscar órdenes: {str(e)}")
+                    # No propagar el error, ya tenemos la información del usuario
+        
+        except Exception as e:
+            logger.error(f"Error general en get_user_details_with_latest_order: {str(e)}")
+        
+        # Log final de la respuesta
+        logger.info(f"Respuesta completa: {result}")
+        return result
 
 
 # Create a singleton instance

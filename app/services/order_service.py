@@ -47,9 +47,13 @@ class OrderService:
             HTTPException: Si hay un error al crear el pedido
         """
         try:
+            # Validar y limpiar la dirección
+            validated_address = address.strip() if address and address.strip() else "No disponible"
+            logger.info(f"Creando pedido para customer_id={customer_id}, dirección={validated_address}")
+            
             with Session(self.db.engine) as session:
                 # Crear el pedido
-                order = Order(customer_id=customer_id, address=address)
+                order = Order(customer_id=customer_id, address=validated_address)
                 session.add(order)
                 session.flush()  # Para obtener el ID del pedido
                 
@@ -59,7 +63,7 @@ class OrderService:
                 for product in products:
                     order_item = OrderItem(
                         order_id=order.id,
-                        product_id="",  # No tenemos el ID del producto, solo el nombre
+                        product_id=product.get("product_id", ""),  # Puede que no tengamos product_id
                         product_name=product["product_name"],
                         quantity=product["quantity"],
                         unit_price=product["unit_price"],
@@ -73,11 +77,19 @@ class OrderService:
                 order.total_amount = total_amount
                 session.add(order)
                 
+                # Verificar que la dirección se haya guardado correctamente
+                logger.info(f"Dirección guardada en la orden antes de commit: {order.address}")
+                
                 session.commit()
                 session.refresh(order)
+                
+                # Verificar después del commit
+                logger.info(f"Orden creada con ID: {order.id}, Customer: {order.customer_id}, Dirección: {order.address}")
+                
                 return order
                 
         except Exception as e:
+            logger.error(f"Error al crear el pedido: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Error al crear el pedido: {str(e)}")
     
     async def get_order(self, order_id: UUID) -> Optional[Order]:
