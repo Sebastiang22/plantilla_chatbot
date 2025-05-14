@@ -72,11 +72,19 @@ async def get_orders_by_date(
         pending_orders = len([o for o in orders if o.status == "pendiente"])
         complete_orders = len([o for o in orders if o.status == "completado"])
         
+        # Calcular ventas totales sumando los subtotales de los pedidos completados
+        total_sales = 0
+        for order in orders:
+            if order.status == "completado":
+                for item in order.items:
+                    total_sales += item.unit_price * item.quantity
+        
         return {
             "stats": {
                 "total_orders": total_orders,
                 "pending_orders": pending_orders,
-                "complete_orders": complete_orders
+                "complete_orders": complete_orders,
+                "total_sales": total_sales
             },
             "orders": [
                 {
@@ -123,11 +131,19 @@ async def get_today_orders():
         pending_orders = len([o for o in orders if o.status == "pendiente"])
         complete_orders = len([o for o in orders if o.status == "completado"])
         
+        # Calcular ventas totales sumando los subtotales de los pedidos completados
+        total_sales = 0
+        for order in orders:
+            if order.status == "completado":
+                for item in order.items:
+                    total_sales += item.unit_price * item.quantity
+        
         return {
             "stats": {
                 "total_orders": total_orders,
                 "pending_orders": pending_orders,
-                "complete_orders": complete_orders
+                "complete_orders": complete_orders,
+                "total_sales": total_sales
             },
             "orders": [
                 {

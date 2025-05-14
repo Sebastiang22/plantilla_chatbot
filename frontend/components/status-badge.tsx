@@ -1,34 +1,61 @@
 import { Badge } from "@/components/ui/badge"
+import { OrderState } from "@/lib/types"
 
 interface StatusBadgeProps {
   status: string
 }
 
+/**
+ * Componente que muestra un badge con el estado del pedido
+ */
 export function StatusBadge({ status }: StatusBadgeProps) {
-  switch (status.toLowerCase()) {
-    case "pendiente":
+  const normalizedStatus = normalizeStatus(status);
+  
+  // Usar los mismos colores que en el modal
+  switch (normalizedStatus) {
+    case OrderState.PENDING:
       return (
-        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+        <Badge className="bg-yellow-500 text-white border-transparent">
           Pendiente
         </Badge>
       )
-    case "en preparación":
+    case OrderState.PREPARING:
       return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+        <Badge className="bg-blue-500 text-white border-transparent">
           En preparación
         </Badge>
       )
-    case "completado":
+    case OrderState.COMPLETED:
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+        <Badge className="bg-green-500 text-white border-transparent">
           Completado
         </Badge>
       )
     default:
       return (
-        <Badge variant="outline" className="bg-muted text-muted-foreground">
+        <Badge variant="outline" className="bg-gray-500 text-white">
           {status}
         </Badge>
       )
   }
+}
+
+/**
+ * Normaliza el estado a uno de los valores de OrderState
+ */
+function normalizeStatus(status: string): string {
+  const lowerStatus = status.toLowerCase();
+  
+  // Mapeo de estados en español a las constantes OrderState
+  if (lowerStatus === "pendiente") return OrderState.PENDING;
+  if (lowerStatus === "en preparación") return OrderState.PREPARING;
+  if (lowerStatus === "en preparacion") return OrderState.PREPARING;
+  if (lowerStatus === "completado") return OrderState.COMPLETED;
+  
+  // Si ya es una constante OrderState, devolverla
+  if (Object.values(OrderState).includes(lowerStatus as OrderState)) {
+    return lowerStatus;
+  }
+  
+  return status;
 } 

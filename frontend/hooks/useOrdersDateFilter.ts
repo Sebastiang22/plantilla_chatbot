@@ -27,7 +27,8 @@ export function useOrdersDateFilter() {
   const [stats, setStats] = useState({
     total_orders: 0,
     pending_orders: 0,
-    complete_orders: 0
+    complete_orders: 0,
+    total_sales: 0
   });
 
   // Función para cargar órdenes con el filtro de fechas

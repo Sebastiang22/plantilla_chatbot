@@ -30,8 +30,6 @@ import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/status-badge"
 import { Order, OrderState, OrderCallback, OrderStatusCallback, OrderDeleteCallback } from "@/lib/types"
 import { formatDate, formatCOP } from "@/lib/utils/format"
-import { DateFilter } from "./date-filter"
-import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter"
 
 interface OrdersListProps {
   orders: Order[]
@@ -44,18 +42,10 @@ interface OrdersListProps {
   error?: string | null
 }
 
-// Importar la función de traducción si no está en este archivo
+// Función para traducir el estado de la orden
 function translateOrderState(state: string): string {
-  switch (state) {
-    case "pending":
-      return "Pendiente";
-    case "preparing":
-      return "En preparación";
-    case "completed":
-      return "Completado";
-    default:
-      return state;
-  }
+  // Ahora solo pasamos el estado original para que el StatusBadge lo maneje
+  return state;
 }
 
 /**
@@ -78,24 +68,6 @@ export function OrdersList({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
-
-  // Usar el hook de filtrado por fecha
-  const {
-    dateRange,
-    orders: dateFilteredOrders,
-    isLoading: isLoadingDates,
-    error: dateFilterError,
-    fetchOrdersByDateRange
-  } = useOrdersDateFilter();
-
-  // Determinar qué órdenes mostrar (las del filtro de fecha si existen, o las originales)
-  const displayOrders = dateFilteredOrders || orders;
-  
-  // Determinar si estamos en estado de carga
-  const showLoading = isLoading || isLoadingDates;
-  
-  // Combinar errores
-  const displayError = error || dateFilterError;
 
   // Función para manejar el cambio en el filtro de estado
   const handleStatusFilterChange = (status: string | null) => {
@@ -287,32 +259,33 @@ export function OrdersList({
                     {order.state === OrderState.COMPLETED && <CheckCircle className="ml-2 h-4 w-4 text-green-500" />}
                   </div>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => onDeleteOrder(order.id)}
+                  disabled={isUpdating}
+                  className="text-red-500 focus:text-red-500"
+                >
+                  <div className="flex items-center">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Eliminar
+                  </div>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Botón de eliminar */}
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={isUpdating}
-              onClick={() => onDeleteOrder(order.id)}
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <span className="sr-only">Eliminar</span>
-            </Button>
-            
-            {/* Botón para ver detalles */}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isUpdating}
+            {/* Acción de ver detalles */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0" 
               onClick={() => {
                 // Obtener el índice de la fila en los datos filtrados
-                const index = table.getFilteredRowModel().rows.findIndex(r => r.id === order.id);
-                onSelectOrder(order, index);
+                const index = table.getFilteredRowModel().rows.findIndex(r => r.id === row.id);
+                onSelectOrder(order, index + 1);
               }}
             >
-              Ver
+              <span className="sr-only">Ver detalles</span>
+              <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
         )
@@ -320,59 +293,32 @@ export function OrdersList({
     },
   ]
 
-  // Función global de búsqueda
-  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSearchTerm(value);
-    
-    // Aplicar filtro global a través de la API de TanStack Table
-    table.setGlobalFilter(value);
-  };
-
+  // Usar hook de tabla con configuración
   const table = useReactTable({
-    data: displayOrders || [], // Usar las órdenes filtradas por fecha o las originales
+    data: orders,
     columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       globalFilter: searchTerm,
     },
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    enableRowSelection: true,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: setSearchTerm,
+    globalFilterFn: "includesString",
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   })
 
-  // Renderizar estado de carga o error
-  if (showLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Cargando órdenes...</p>
-      </div>
-    )
-  }
-
-  if (displayError) {
-    return (
-      <div className="border border-red-300 bg-red-50 dark:bg-red-900/20 p-4 rounded-md">
-        <p className="text-red-500 dark:text-red-400">
-          Error: {displayError}
-        </p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
-          Reintentar
-        </Button>
-      </div>
-    )
+  // Función para manejar la búsqueda mediante input
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value
+    setSearchTerm(value)
   }
 
   return (
@@ -390,43 +336,9 @@ export function OrdersList({
               onChange={handleSearch}
             />
           </div>
-          {/* Añadir el filtro de fechas */}
-          <DateFilter 
-            onDateChange={(startDate, endDate) => {
-              fetchOrdersByDateRange({ startDate, endDate });
-            }}
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="ml-auto">
-                Columnas <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                    >
-                      {column.id === 'address' ? 'Dirección' : 
-                       column.id === 'customer_name' ? 'Cliente' : 
-                       column.id === 'total_price' ? 'Total' :
-                       column.id === 'created_at' ? 'Fecha' : 
-                       column.id === 'state' ? 'Estado' : 
-                       column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -448,7 +360,25 @@ export function OrdersList({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Cargando órdenes...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <p className="text-sm font-medium text-red-500">Error al cargar órdenes</p>
+                    <p className="text-xs text-muted-foreground">{error}</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -457,33 +387,28 @@ export function OrdersList({
                   onClick={() => {
                     // Obtener el índice de la fila en los datos filtrados
                     const index = table.getFilteredRowModel().rows.findIndex(r => r.id === row.id);
-                    onSelectOrder(row.original, index);
+                    onSelectOrder(row.original, index + 1);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No se encontraron órdenes
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No hay órdenes disponibles.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between space-x-2 py-4">
+
+      <div className="flex items-center justify-between gap-2">
         <div className="flex-1 text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length} órdenes encontradas.
         </div>

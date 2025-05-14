@@ -30,23 +30,27 @@ interface OrderModalProps {
   onStatusUpdate: OrderStatusCallback
   onDeleteOrder: OrderDeleteCallback
   isUpdating?: boolean
-  orderIndex?: number // Nuevo prop para recibir el índice del pedido
+  orderIndex?: number | null // Modificar para aceptar null como tipo válido
 }
 
 /**
- * Traduce el estado del pedido de inglés a español
+ * Traduce el estado del pedido a español para mostrar en la interfaz
  */
 function translateOrderState(state: string): string {
-  switch (state) {
-    case "pending":
-      return "Pendiente";
-    case "preparing":
-      return "En preparación";
-    case "completed":
-      return "Completado";
-    default:
-      return state;
-  }
+  const lowerState = state.toLowerCase();
+  
+  // Estados en inglés
+  if (lowerState === "pending") return "Pendiente";
+  if (lowerState === "preparing") return "En preparación";
+  if (lowerState === "completed") return "Completado";
+  
+  // Estados ya en español
+  if (lowerState === "pendiente") return "Pendiente";
+  if (lowerState === "en preparación") return "En preparación";
+  if (lowerState === "completado") return "Completado";
+  
+  // Estado no reconocido
+  return state;
 }
 
 /**

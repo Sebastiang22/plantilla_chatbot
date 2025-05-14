@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Order } from "@/lib/types";
 import { MenuImageModal } from "@/components/menu-image-modal";
+import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter";
+import { DateFilter } from "./orders/date-filter";
 
 // Componente Emoji accesible
 const Emoji = ({ 
@@ -49,6 +51,23 @@ export function DashboardClient() {
     updateOrderStatus, 
     deleteOrder 
   } = useOrders();
+
+  // Usar el hook de filtrado por fecha a nivel del dashboard
+  const {
+    dateRange,
+    orders: dateFilteredOrders,
+    stats: dateFilteredStats,
+    isLoading: isLoadingDates,
+    error: dateFilterError,
+    fetchOrdersByDateRange,
+    setQuickDateRange
+  } = useOrdersDateFilter();
+
+  // Determinar qué datos mostrar (los filtrados por fecha o los generales)
+  const displayOrders = dateFilteredOrders || orders;
+  const displayStats = dateFilteredOrders ? dateFilteredStats : stats;
+  const combinedLoading = isLoading || isLoadingDates;
+  const combinedError = error || dateFilterError;
 
   const [selectedOrderData, setSelectedOrderData] = useState<{order: Order | null, index: number | null}>({
     order: null,
@@ -87,6 +106,11 @@ export function DashboardClient() {
         description: `El pedido ha sido marcado como "${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}"`,
         variant: "default",
       });
+      
+      // Si tenemos un filtro de fecha aplicado, actualizar los datos filtrados
+      if (dateRange.startDate || dateRange.endDate) {
+        fetchOrdersByDateRange(dateRange);
+      }
     } catch (err) {
       toast({
         variant: "destructive",
@@ -101,7 +125,7 @@ export function DashboardClient() {
         return newSet;
       });
     }
-  }, [updateOrderStatus, toast]);
+  }, [updateOrderStatus, toast, dateRange, fetchOrdersByDateRange]);
 
   // Manejar la eliminación de un pedido
   const handleDeleteOrder = useCallback((orderId: string) => {
@@ -126,6 +150,11 @@ export function DashboardClient() {
         setIsModalOpen(false);
         setSelectedOrderData({order: null, index: null});
       }
+      
+      // Si tenemos un filtro de fecha aplicado, actualizar los datos filtrados
+      if (dateRange.startDate || dateRange.endDate) {
+        fetchOrdersByDateRange(dateRange);
+      }
     } catch (err) {
       toast({
         variant: "destructive",
@@ -136,7 +165,12 @@ export function DashboardClient() {
       setIsConfirmDialogOpen(false);
       setPendingDeleteOrderId(null);
     }
-  }, [pendingDeleteOrderId, deleteOrder, toast, selectedOrderData]);
+  }, [pendingDeleteOrderId, deleteOrder, toast, selectedOrderData, dateRange, fetchOrdersByDateRange]);
+  
+  // Manejar cambios en el filtro de fecha
+  const handleDateChange = useCallback((startDate: string | null, endDate: string | null) => {
+    fetchOrdersByDateRange({ startDate, endDate });
+  }, [fetchOrdersByDateRange]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -171,11 +205,17 @@ export function DashboardClient() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <DateFilter onDateChange={handleDateChange} />
             <Button variant="outline" onClick={() => setIsMenuModalOpen(true)}>
               <MenuIcon className="h-4 w-4 mr-2" />
               Cambiar Menú
             </Button>
-            <Button variant="default" onClick={() => refreshOrders()}>
+            <Button variant="default" onClick={() => {
+              refreshOrders();
+              if (dateRange.startDate || dateRange.endDate) {
+                fetchOrdersByDateRange(dateRange);
+              }
+            }}>
               Actualizar
             </Button>
           </div>
@@ -183,19 +223,19 @@ export function DashboardClient() {
       </header>
       <main className="flex-1 overflow-auto p-4">
         <div className="container mx-auto space-y-6">
-          {/* Estadísticas */}
-          <Statistics stats={stats} isLoading={isLoading} />
+          {/* Estadísticas - mostrar las filtradas si hay filtro activo */}
+          <Statistics stats={displayStats} isLoading={combinedLoading} />
 
-          {/* Lista de Órdenes */}
+          {/* Lista de Órdenes - no incluir el filtro de fecha aquí, ya está en el header */}
           <OrdersList
-            orders={orders}
+            orders={displayOrders}
             onSelectOrder={handleSelectOrder}
             onStatusUpdate={handleStatusUpdate}
             onDeleteOrder={handleDeleteOrder}
             updatingOrderIds={updatingOrderIds}
             setUpdatingOrderIds={setUpdatingOrderIds}
-            isLoading={isLoading}
-            error={error}
+            isLoading={combinedLoading}
+            error={combinedError}
           />
 
           {/* Modal de Orden - Actualizado para usar selectedOrderData */}
