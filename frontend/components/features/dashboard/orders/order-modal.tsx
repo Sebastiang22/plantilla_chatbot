@@ -34,6 +34,22 @@ interface OrderModalProps {
 }
 
 /**
+ * Traduce el estado del pedido de inglés a español
+ */
+function translateOrderState(state: string): string {
+  switch (state) {
+    case "pending":
+      return "Pendiente";
+    case "preparing":
+      return "En preparación";
+    case "completed":
+      return "Completado";
+    default:
+      return state;
+  }
+}
+
+/**
  * Modal para mostrar detalles y gestionar un pedido
  */
 export function OrderModal({ 
@@ -92,7 +108,7 @@ export function OrderModal({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <DialogTitle className="text-xl">Pedido #{displayNumber}</DialogTitle>
             <Badge className={`${statusColors[currentOrderState as OrderState] || "bg-gray-500"} whitespace-nowrap`}>
-              {currentOrderState.charAt(0).toUpperCase() + currentOrderState.slice(1)}
+              {translateOrderState(currentOrderState)}
             </Badge>
           </div>
           <DialogDescription>
@@ -141,7 +157,10 @@ export function OrderModal({
             disabled={isUpdating}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleccionar estado" />
+              <SelectValue placeholder="Seleccionar estado">
+                {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {translateOrderState(currentOrderState)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={OrderState.PENDING}>Pendiente</SelectItem>

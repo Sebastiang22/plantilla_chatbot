@@ -59,7 +59,16 @@ async def extract_menu_from_image(
                   "Ejemplo: {'menu': [{'name': 'Plato 1', 'description': 'Descripción 1', 'price': 20000, 'category': 'Menú Ejecutivo'}]}"
         )
         
+        
         print("Datos recibidos de OpenAI:", menu_data)
+        
+        # Validar si el menú extraído está vacío
+        if not menu_data.get("menu"):
+            # Lanzar una excepción personalizada si la imagen no es un menú válido
+            raise HTTPException(
+                status_code=400,
+                detail="Imagen de menú no válida"
+            )
         
         # Procesar y guardar los productos del menú
         success = await menu_service.process_menu_data(menu_data)

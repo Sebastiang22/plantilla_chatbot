@@ -77,8 +77,18 @@ export function MenuImageModal({ open, onOpenChange }: MenuImageModalProps) {
         body: JSON.stringify({ image_hex: imageHex }),
       });
 
+      let errorMessage = `Error: ${response.status}`;
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        // Intentar extraer el mensaje personalizado del backend
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.detail) {
+            errorMessage = errorData.detail;
+          }
+        } catch (e) {
+          // Si no se puede extraer el mensaje, mantener el mensaje por defecto
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

@@ -42,6 +42,20 @@ interface OrdersListProps {
   error?: string | null
 }
 
+// Importar la función de traducción si no está en este archivo
+function translateOrderState(state: string): string {
+  switch (state) {
+    case "pending":
+      return "Pendiente";
+    case "preparing":
+      return "En preparación";
+    case "completed":
+      return "Completado";
+    default:
+      return state;
+  }
+}
+
 /**
  * Lista de órdenes con funcionalidad de filtrado, ordenamiento y paginación
  */
@@ -203,7 +217,7 @@ export function OrdersList({
         </div>
       ),
       cell: ({ row }) => {
-        return <StatusBadge status={row.getValue("state")} />
+        return <StatusBadge status={translateOrderState(row.getValue("state"))} />
       },
     },
     {
