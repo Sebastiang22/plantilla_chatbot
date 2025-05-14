@@ -98,8 +98,8 @@ export function OrderModal({
     return total + product.price * product.quantity
   }, 0)
 
-  // Determinar el número a mostrar (usar el índice si está disponible, o mostrar el ID como fallback)
-  const displayNumber = typeof orderIndex === 'number' ? orderIndex + 1 : order.id;
+  // Determinar el número a mostrar (usar el índice si está disponible, o mostrar "ID" como prefijo)
+  const displayNumber = typeof orderIndex === 'number' ? (orderIndex + 1) : 'ID';
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => !isUpdating && onOpenChange(newOpen)}>
@@ -129,7 +129,7 @@ export function OrderModal({
             <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">Dirección</p>
-              <p className="text-sm text-muted-foreground">{order.address}</p>
+              <p className="text-sm text-muted-foreground">{order.table_id}</p>
             </div>
           </div>
           <div className="flex items-start gap-2">

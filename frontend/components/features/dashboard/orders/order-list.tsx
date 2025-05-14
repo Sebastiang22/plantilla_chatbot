@@ -306,7 +306,11 @@ export function OrdersList({
               variant="outline"
               size="sm"
               disabled={isUpdating}
-              onClick={() => onSelectOrder(order)}
+              onClick={() => {
+                // Obtener el índice de la fila en los datos filtrados
+                const index = table.getFilteredRowModel().rows.findIndex(r => r.id === order.id);
+                onSelectOrder(order, index);
+              }}
             >
               Ver
             </Button>
@@ -450,7 +454,11 @@ export function OrdersList({
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer"
-                  onClick={() => onSelectOrder(row.original)}
+                  onClick={() => {
+                    // Obtener el índice de la fila en los datos filtrados
+                    const index = table.getFilteredRowModel().rows.findIndex(r => r.id === row.id);
+                    onSelectOrder(row.original, index);
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
