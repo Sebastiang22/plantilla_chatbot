@@ -60,10 +60,21 @@ async function fetchWithTimeout(
  */
 export const apiClient = {
   /**
-   * Obtiene las órdenes del día
+   * Obtiene las órdenes del día actual utilizando el endpoint by-date
    */
   async getOrders() {
-    const response = await fetchWithTimeout(buildApiUrl(backendConfig.endpoints.orders.today));
+    // Obtenemos la fecha actual en formato ISO
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Construimos la URL con los parámetros
+    const params = new URLSearchParams();
+    params.append('start_date', today);
+    params.append('end_date', today);
+    
+    const endpoint = backendConfig.endpoints.orders.byDate;
+    const url = buildApiUrl(`${endpoint}?${params.toString()}`);
+    
+    const response = await fetchWithTimeout(url);
     return response.json();
   },
   

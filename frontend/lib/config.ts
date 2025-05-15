@@ -10,7 +10,7 @@ export const backendConfig = {
   // Endpoints del API
   endpoints: {
     orders: {
-      today: '/api/v1/orders/today',
+      // Utilizamos el endpoint byDate con parámetros para obtener órdenes del día actual
       byDate: '/api/v1/orders/by-date',
       updateState: '/api/v1/orders/update_state',
       delete: (orderId: string) => `/api/v1/orders/${orderId}`,
@@ -37,7 +37,9 @@ export const backendConfig = {
   }
 } as const;
 
-// Función helper para construir URLs completas
-export const buildApiUrl = (endpoint: string): string => {
-  return `${backendConfig.baseUrl}${endpoint}`;
-}; 
+/**
+ * Construye una URL para el API utilizando la URL base configurada
+ */
+export function buildApiUrl(path: string): string {
+  return `${backendConfig.baseUrl}${path}`;
+} 

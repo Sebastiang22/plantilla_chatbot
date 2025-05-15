@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Order } from '@/lib/types';
 import { buildApiUrl, backendConfig } from '@/lib/config';
 
@@ -8,10 +8,13 @@ type DateRange = {
 };
 
 export function useOrdersDateFilter() {
-  // Estado para el rango de fechas actual (predeterminado: últimos 30 días)
+  // Obtenemos la fecha actual en formato ISO para inicializar con el día actual
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Estado para el rango de fechas actual (predeterminado: fecha actual)
   const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: null, // Si es null, backend usará últimos 30 días
-    endDate: null    // Si es null, backend usará fecha actual
+    startDate: today,
+    endDate: today
   });
   
   // Estado para controlar si estamos cargando datos
@@ -110,6 +113,12 @@ export function useOrdersDateFilter() {
       setDateRange(newRange);
       fetchOrdersByDateRange(newRange);
     }
+  }, [fetchOrdersByDateRange]);
+
+  // Cargar datos al inicializar
+  useEffect(() => {
+    // Cargar los datos del día actual al inicializar
+    fetchOrdersByDateRange();
   }, [fetchOrdersByDateRange]);
 
   return {
