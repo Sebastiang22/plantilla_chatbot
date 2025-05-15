@@ -33,7 +33,8 @@ export type Product = {
   name: string
   quantity: number
   price: number
-  observations?: string // Campo opcional para observaciones
+  details?: string
+  subtotal?: number
 }
 
 export type Order = {
@@ -290,7 +291,7 @@ export function OrderList({ orders, onSelectOrder, onStatusUpdate, onDeleteOrder
           order.products.some(
             (product) =>
               product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (product.observations && product.observations.toLowerCase().includes(searchTerm.toLowerCase())),
+              (product.details && product.details.toLowerCase().includes(searchTerm.toLowerCase())),
           ),
       )
     : orders
@@ -337,7 +338,7 @@ export function OrderList({ orders, onSelectOrder, onStatusUpdate, onDeleteOrder
       const address = safeValue(row.getValue('address'))
       const products = row.getValue('products') as Product[]
       const productsText = products
-        .map(p => `${p.name} ${p.observations || ''}`)
+        .map(p => `${p.name} ${p.details || ''}`)
         .join(' ')
         .toLowerCase()
       

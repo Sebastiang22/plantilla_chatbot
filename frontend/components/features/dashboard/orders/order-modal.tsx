@@ -187,10 +187,11 @@ export function OrderModal({
                       <p className="text-sm text-muted-foreground">
                         Cantidad: {product.quantity}
                       </p>
-                      {product.observations && (
-                        <p className="text-sm text-muted-foreground">
-                          Observaciones: {product.observations}
-                        </p>
+                      {product.details && (
+                        <div className="mt-2 p-2 bg-muted rounded-md text-sm flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                          <span>{product.details}</span>
+                        </div>
                       )}
                     </div>
                     <p className="font-medium">${product.price.toLocaleString()}</p>
