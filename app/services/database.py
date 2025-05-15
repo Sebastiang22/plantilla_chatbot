@@ -7,6 +7,7 @@ from typing import (
     Any,
 )
 
+import uuid
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import QueuePool
@@ -135,6 +136,56 @@ class DatabaseService:
             session.refresh(thread)
             logger.info("thread_created", thread_id=thread_id, user_id=user_id)
             return thread
+
+    async def get_or_create_user(self, phone: str) -> User:
+        """Obtiene un usuario por su número de teléfono o lo crea si no existe.
+        
+        Args:
+            phone: Número de teléfono del usuario
+            
+        Returns:
+            User: Usuario encontrado o creado
+            
+        Raises:
+            HTTPException: Si hay un error al buscar o crear el usuario
+        """
+        try:
+            user = await self.get_user_by_phone(phone)
+            if not user:
+                logger.info("user_not_found_creating_new", phone=phone)
+                user = await self.create_user(name="Usuario", phone=phone)
+                logger.info("user_created_successfully", user_id=user.id, phone=phone)
+            else:
+                logger.info("user_found", user_id=user.id, phone=phone)
+            return user
+        except Exception as e:
+            logger.error("user_operation_failed", phone=phone, error=str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error al procesar usuario: {str(e)}")
+
+    async def get_or_create_thread(self, user_id: int) -> Thread:
+        """Obtiene el último thread del usuario o crea uno nuevo.
+        
+        Args:
+            user_id: ID del usuario
+            
+        Returns:
+            Thread: Thread encontrado o creado
+            
+        Raises:
+            HTTPException: Si hay un error al buscar o crear el thread
+        """
+        try:
+            thread = await self.get_latest_thread(user_id)
+            if not thread:
+                thread_id = str(uuid.uuid4())
+                thread = await self.create_thread(thread_id, user_id)
+                logger.info("new_thread_created", thread_id=thread.id, user_id=user_id)
+            else:
+                logger.info("existing_thread_found", thread_id=thread.id, user_id=user_id)
+            return thread
+        except Exception as e:
+            logger.error("thread_operation_failed", user_id=user_id, error=str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error al procesar thread: {str(e)}")
 
     async def health_check(self) -> bool:
         """Check database connection health.

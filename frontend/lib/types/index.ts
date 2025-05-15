@@ -46,6 +46,7 @@ export interface BackendData {
 export enum OrderState {
   PENDING = 'pendiente',
   PREPARING = 'en preparación',
+  DELIVERY = 'en reparto',
   COMPLETED = 'completado'
 }
 

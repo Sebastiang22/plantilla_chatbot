@@ -201,6 +201,9 @@ export function OrdersList({
               <DropdownMenuItem onClick={() => handleStatusFilterChange(OrderState.PREPARING)}>
                 En Preparación
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusFilterChange(OrderState.DELIVERY)}>
+                En Reparto
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleStatusFilterChange(OrderState.COMPLETED)}>
                 Completado
               </DropdownMenuItem>
@@ -248,6 +251,15 @@ export function OrdersList({
                   <div className="flex items-center">
                     En Preparación
                     {order.state === OrderState.PREPARING && <CheckCircle className="ml-2 h-4 w-4 text-green-500" />}
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  disabled={order.state === OrderState.DELIVERY || isUpdating}
+                  onClick={() => handleStatusUpdate(order.id, OrderState.DELIVERY)}
+                >
+                  <div className="flex items-center">
+                    En Reparto
+                    {order.state === OrderState.DELIVERY && <CheckCircle className="ml-2 h-4 w-4 text-green-500" />}
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem 

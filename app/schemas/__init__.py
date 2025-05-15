@@ -8,6 +8,7 @@ from schemas.chat import (
     StreamResponse,
 )
 from schemas.graph import GraphState
+from schemas.order import OrderStatusUpdate, OrderResponse
 
 __all__ = [
     "Token",
@@ -16,4 +17,6 @@ __all__ = [
     "Message",
     "StreamResponse",
     "GraphState",
+    "OrderStatusUpdate",
+    "OrderResponse",
 ]

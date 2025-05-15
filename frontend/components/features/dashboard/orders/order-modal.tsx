@@ -42,11 +42,14 @@ function translateOrderState(state: string): string {
   // Estados en inglés
   if (lowerState === "pending") return "Pendiente";
   if (lowerState === "preparing") return "En preparación";
+  if (lowerState === "delivery") return "En reparto";
   if (lowerState === "completed") return "Completado";
   
   // Estados ya en español
   if (lowerState === "pendiente") return "Pendiente";
   if (lowerState === "en preparación") return "En preparación";
+  if (lowerState === "preparando") return "En reparto";
+  if (lowerState === "en reparto") return "En reparto";
   if (lowerState === "completado") return "Completado";
   
   // Estado no reconocido
@@ -80,6 +83,7 @@ export function OrderModal({
   const statusColors = {
     [OrderState.PENDING]: "bg-yellow-500",
     [OrderState.PREPARING]: "bg-blue-500",
+    [OrderState.DELIVERY]: "bg-purple-500",
     [OrderState.COMPLETED]: "bg-green-500",
   }
   
@@ -169,6 +173,7 @@ export function OrderModal({
             <SelectContent>
               <SelectItem value={OrderState.PENDING}>Pendiente</SelectItem>
               <SelectItem value={OrderState.PREPARING}>En preparación</SelectItem>
+              <SelectItem value={OrderState.DELIVERY}>En reparto</SelectItem>
               <SelectItem value={OrderState.COMPLETED}>Completado</SelectItem>
             </SelectContent>
           </Select>

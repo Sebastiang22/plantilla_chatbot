@@ -18,25 +18,11 @@ from core.config import settings
 from core.limiter import limiter
 from core.logging import logger
 from utils.utils import current_colombian_time
+from schemas.order import OrderStatusUpdate, OrderResponse
 
 router = APIRouter(tags=["orders"])
 
 logger = logging.getLogger(__name__)
-
-class OrderStatusUpdate(BaseModel):
-    """Modelo para actualizar el estado de una orden."""
-    order_id: str
-    state: str
-
-class OrderResponse(BaseModel):
-    """Modelo de respuesta para una orden."""
-    id: str
-    address: str
-    customer_name: str
-    products: List[Dict[str, Any]]
-    created_at: str
-    updated_at: str
-    state: str
 
 # URL del API de WhatsApp (configurado en settings o hardcoded por ahora)
 WHATSAPP_API_URL = "http://localhost:3001/api/send-message"
@@ -250,8 +236,8 @@ async def update_order_state(status_update: OrderStatusUpdate):
         # Validar que el estado sea uno de los permitidos
         valid_states = [
             "pending", "preparing", "completed",  # Estados en inglés
-            "pendiente", "preparando", "completado",  # Estados en español
-            "en preparación"  # Agregamos el nuevo estado
+            "pendiente", "completado",  # Estados en español
+            "en preparación", "en reparto"  # Agregamos los estados con formato español
         ]
         
         if status_update.state.lower() not in [s.lower() for s in valid_states]:
@@ -287,9 +273,8 @@ async def update_order_state(status_update: OrderStatusUpdate):
             # Mapeo de estados a mensajes amigables
             status_messages = {
                 "pendiente": f"¡Hola {client_name}! 👋 Tu pedido ha sido recibido y está pendiente de preparación. Te notificaremos cuando comience a prepararse.",
-                "preparando": f"¡Buenas noticias {client_name}! 👨‍🍳 Tu pedido ya está en preparación. Pronto estará listo para entrega.",
                 "en preparación": f"¡Buenas noticias {client_name}! 👨‍🍳 Tu pedido ya está en preparación. Pronto estará listo para entrega.",
-                "completado": f"¡Hola {client_name}! 🎉 Tu pedido ha sido completado y está en camino. ¡Buen provecho! Gracias por preferirnos."
+                "en reparto": f"¡Excelentes noticias {client_name}! 🚚 Tu pedido está en camino. Pronto llegará a tu dirección."
             }
             
             # Mensaje por defecto si no está en el mapeo
@@ -298,10 +283,13 @@ async def update_order_state(status_update: OrderStatusUpdate):
                 f"Hola {client_name}, el estado de tu pedido ha sido actualizado a: {status_name}"
             )
             
-            # Solo enviar notificación si el estado cambió
-            if previous_state.lower() != status_name.lower():
+            # Solo enviar notificación si el estado cambió y NO es completado
+            if previous_state.lower() != status_name.lower() and status_name.lower() != "completado":
                 # Enviar notificación WhatsApp en segundo plano
                 asyncio.create_task(send_whatsapp_notification(customer_phone, notification_message))
+                notification_sent = True
+            else:
+                notification_sent = False
             
             logger.info(
                 f"Estado de orden actualizado exitosamente: {str(order.id)} - Nuevo estado: {order.status}"
@@ -313,7 +301,7 @@ async def update_order_state(status_update: OrderStatusUpdate):
                     "id": str(order.id),
                     "state": order.status,
                     "updated_at": order.updated_at.isoformat(),
-                    "notification_sent": previous_state.lower() != status_name.lower()
+                    "notification_sent": notification_sent
                 }
             }
         except HTTPException as he:
@@ -356,17 +344,3 @@ async def delete_order(order_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/ws-status")
-async def check_websocket_status():
-    """Verifica el estado del servidor WebSocket.
-    
-    Returns:
-        Dict[str, bool]: Estado del servidor
-    """
-    try:
-        # Aquí podrías implementar una verificación real del estado del WebSocket
-        return {"status": "online"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
-    

@@ -11,10 +11,11 @@ import { MoonIcon, SunIcon, MenuIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Order } from "@/lib/types";
+import { Order, OrderState } from "@/lib/types";
 import { MenuImageModal } from "@/components/menu-image-modal";
 import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter";
 import { DateFilter } from "./orders/date-filter";
+import { StatusBadge } from "@/components/status-badge";
 
 // Componente Emoji accesible
 const Emoji = ({ 
@@ -35,6 +36,22 @@ const Emoji = ({
     {symbol}
   </span>
 );
+
+// Función para traducir estado de orden para mostrar en mensajes
+function getDisplayNameForOrderState(state: string): string {
+  const lowerState = state.toLowerCase();
+  
+  if (lowerState === OrderState.PENDING) return "Pendiente";
+  if (lowerState === OrderState.PREPARING) return "En preparación";
+  if (lowerState === OrderState.DELIVERY) return "En reparto";
+  if (lowerState === OrderState.COMPLETED) return "Completado";
+  
+  // Estados especiales que pueden venir del backend
+  if (lowerState === "preparando") return "En reparto"; // Mostrar "preparando" como "En reparto"
+  
+  // Estado no reconocido, devolver con primera letra en mayúscula
+  return state.charAt(0).toUpperCase() + state.slice(1);
+}
 
 /**
  * Componente principal del Dashboard
@@ -100,10 +117,10 @@ export function DashboardClient() {
 
       await updateOrderStatus(orderId, newStatus);
 
-      // Mostrar notificación de éxito
+      // Mostrar notificación de éxito usando la función de traducción
       toast({
         title: "Estado actualizado",
-        description: `El pedido ha sido marcado como "${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}"`,
+        description: `El pedido ha sido marcado como "${getDisplayNameForOrderState(newStatus)}"`,
         variant: "default",
       });
       

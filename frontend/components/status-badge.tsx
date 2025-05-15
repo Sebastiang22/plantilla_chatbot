@@ -25,6 +25,12 @@ export function StatusBadge({ status }: StatusBadgeProps) {
           En preparación
         </Badge>
       )
+    case OrderState.DELIVERY:
+      return (
+        <Badge className="bg-purple-500 text-white border-transparent">
+          En reparto
+        </Badge>
+      )
     case OrderState.COMPLETED:
       return (
         <Badge className="bg-green-500 text-white border-transparent">
@@ -49,12 +55,14 @@ function normalizeStatus(status: string): string {
   // Mapeo de estados en inglés a español
   if (lowerStatus === "pending") return OrderState.PENDING;
   if (lowerStatus === "preparing") return OrderState.PREPARING;
+  if (lowerStatus === "delivery") return OrderState.DELIVERY;
   if (lowerStatus === "completed") return OrderState.COMPLETED;
   
   // Mapeo de estados en español a las constantes OrderState
   if (lowerStatus === "pendiente") return OrderState.PENDING;
   if (lowerStatus === "en preparación") return OrderState.PREPARING;
   if (lowerStatus === "en preparacion") return OrderState.PREPARING;
+  if (lowerStatus === "en reparto") return OrderState.DELIVERY;
   if (lowerStatus === "completado") return OrderState.COMPLETED;
   
   // Si ya es una constante OrderState, devolverla
