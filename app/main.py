@@ -1,12 +1,18 @@
 """This file contains the main application entry point."""
 
 import os
+import asyncio
+import platform
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
     Any,
     Dict,
 )
+
+# Configure event loop policy for Windows
+if platform.system() == "Windows":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from dotenv import load_dotenv
 from fastapi import (
