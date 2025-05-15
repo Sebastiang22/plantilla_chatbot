@@ -1,4 +1,4 @@
-"""API endpoints para la gestión de órdenes."""
+"""Endpoints for order management."""
 
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
@@ -15,6 +15,9 @@ import asyncio
 from services.order_service import order_service
 from services.database import database_service
 from core.config import settings
+from core.limiter import limiter
+from core.logging import logger
+from utils.utils import current_colombian_time
 
 router = APIRouter(tags=["orders"])
 
@@ -88,12 +91,20 @@ async def get_orders_by_date(
         if start_date:
             start = datetime.fromisoformat(start_date)
         else:
-            start = datetime.now() - timedelta(days=30)
+            # Usar la función current_colombian_time para obtener la fecha actual de Colombia
+            current_time = current_colombian_time()
+            # Convertir a objeto datetime para poder restar días
+            current_datetime = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
+            start = current_datetime - timedelta(days=30)
             
         if end_date:
             end = datetime.fromisoformat(end_date) + timedelta(days=1)  # Añadir 1 día para incluir toda la fecha final
         else:
-            end = datetime.now() + timedelta(days=1)  # Incluir órdenes de hoy
+            # Usar la función current_colombian_time para obtener la fecha actual de Colombia
+            current_time = current_colombian_time()
+            # Convertir a objeto datetime para poder sumar días
+            current_datetime = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
+            end = current_datetime + timedelta(days=1)  # Incluir órdenes de hoy
         
         # Obtener órdenes en el rango de fechas
         orders = await order_service.get_orders_by_date_range(start, end)

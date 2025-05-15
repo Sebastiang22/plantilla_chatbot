@@ -11,6 +11,7 @@ import logging
 
 from models.order import Order, OrderItem
 from services.database import database_service
+from utils.utils import current_colombian_time
 
 # Configurar el logger
 logger = logging.getLogger(__name__)
@@ -150,7 +151,7 @@ class OrderService:
                 )
                 
                 order.status = status
-                order.updated_at = datetime.utcnow()
+                order.updated_at = datetime.fromisoformat(current_colombian_time())
                 session.add(order)
                 session.commit()
                 session.refresh(order)
@@ -325,7 +326,7 @@ class OrderService:
                 
                 # Actualizar el monto total de la orden
                 order.total_amount = total_amount
-                order.updated_at = datetime.utcnow()
+                order.updated_at = datetime.fromisoformat(current_colombian_time())
                 session.add(order)
                 
                 session.commit()
@@ -423,7 +424,7 @@ class OrderService:
                     total_amount += item.subtotal
                 
                 order.total_amount = total_amount
-                order.updated_at = datetime.utcnow()
+                order.updated_at = datetime.fromisoformat(current_colombian_time())
                 
                 session.add(order)
                 session.add(order_item)

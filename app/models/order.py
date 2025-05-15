@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 from sqlmodel import Field, SQLModel, Relationship
 from uuid import UUID, uuid4
+from utils.utils import current_colombian_time
 
 class Order(SQLModel, table=True):
     """Modelo para la tabla de pedidos.
@@ -22,8 +23,8 @@ class Order(SQLModel, table=True):
     status: str = Field(default="pending")
     total_amount: float = Field(default=0.0)
     address: str = Field(default="")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.fromisoformat(current_colombian_time()))
+    updated_at: datetime = Field(default_factory=lambda: datetime.fromisoformat(current_colombian_time()))
     
     # Relación con los items del pedido
     items: list["OrderItem"] = Relationship(back_populates="order")

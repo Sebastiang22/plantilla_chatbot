@@ -22,6 +22,7 @@ from core.config import (
     Environment,
     settings,
 )
+from utils.utils import current_colombian_time
 
 # Ensure log directory exists
 settings.LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,7 +35,9 @@ def get_log_file_path() -> Path:
         Path: The path to the log file
     """
     env_prefix = settings.ENVIRONMENT.value
-    return settings.LOG_DIR / f"{env_prefix}-{datetime.now().strftime('%Y-%m-%d')}.jsonl"
+    # Extraer solo la fecha del timestamp completo de Colombia
+    date_part = current_colombian_time().split(' ')[0]
+    return settings.LOG_DIR / f"{env_prefix}-{date_part}.jsonl"
 
 
 class JsonlFileHandler(logging.Handler):
