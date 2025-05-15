@@ -28,6 +28,7 @@ from core.config import settings
 from core.limiter import limiter
 from core.logging import logger
 from services.database import database_service
+from utils.utils import current_colombian_time
 
 # Load environment variables
 load_dotenv()
@@ -149,7 +150,7 @@ async def health_check(request: Request) -> Dict[str, Any]:
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT.value,
         "components": {"api": "healthy", "database": "healthy" if db_healthy else "unhealthy"},
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": current_colombian_time(),
     }
 
     # If DB is unhealthy, set the appropriate status code

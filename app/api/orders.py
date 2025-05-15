@@ -1,4 +1,4 @@
-"""API endpoints para la gestión de órdenes."""
+"""Endpoints for order management."""
 
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
@@ -15,6 +15,9 @@ import asyncio
 from services.order_service import order_service
 from services.database import database_service
 from core.config import settings
+from core.limiter import limiter
+from core.logging import logger
+from utils.utils import current_colombian_time
 
 router = APIRouter(tags=["orders"])
 
@@ -88,33 +91,41 @@ async def get_orders_by_date(
         if start_date:
             start = datetime.fromisoformat(start_date)
         else:
-            start = datetime.now() - timedelta(days=30)
+            # Usar la función current_colombian_time para obtener la fecha actual de Colombia
+            current_time = current_colombian_time()
+            # Convertir a objeto datetime para poder restar días
+            current_datetime = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
+            start = current_datetime - timedelta(days=30)
             
         if end_date:
             end = datetime.fromisoformat(end_date) + timedelta(days=1)  # Añadir 1 día para incluir toda la fecha final
         else:
-            end = datetime.now() + timedelta(days=1)  # Incluir órdenes de hoy
+            # Usar la función current_colombian_time para obtener la fecha actual de Colombia
+            current_time = current_colombian_time()
+            # Convertir a objeto datetime para poder sumar días
+            current_datetime = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S')
+            end = current_datetime + timedelta(days=1)  # Incluir órdenes de hoy
         
         # Obtener órdenes en el rango de fechas
-        orders = await order_service.get_orders_by_date_range(start, end)
+        orders_data = await order_service.get_orders_by_date_range(start, end)
         
-        # Obtener los nombres de los usuarios relacionados (igual que en get_today_orders)
-        customer_phones = [order.customer_id for order in orders]
+        # Obtener los nombres de los usuarios relacionados
+        customer_phones = [order["customer_id"] for order in orders_data]
         with order_service.db.engine.connect() as conn:
             users = conn.execute(select(User).where(User.phone.in_(customer_phones))).fetchall()
             user_map = {user.phone: user.name for user in users}
         
         # Calcular estadísticas
-        total_orders = len(orders)
-        pending_orders = len([o for o in orders if o.status == "pendiente"])
-        complete_orders = len([o for o in orders if o.status == "completado"])
+        total_orders = len(orders_data)
+        pending_orders = len([o for o in orders_data if o["status"] == "pendiente"])
+        complete_orders = len([o for o in orders_data if o["status"] == "completado"])
         
         # Calcular ventas totales sumando los subtotales de los pedidos completados
         total_sales = 0
-        for order in orders:
-            if order.status == "completado":
-                for item in order.items:
-                    total_sales += item.unit_price * item.quantity
+        for order in orders_data:
+            if order["status"] == "completado":
+                for product in order["products"]:
+                    total_sales += float(product["subtotal"])
         
         return {
             "stats": {
@@ -125,25 +136,28 @@ async def get_orders_by_date(
             },
             "orders": [
                 {
-                    "id": str(order.id),
-                    "address": order.address,
-                    "customer_name": user_map.get(order.customer_id, order.customer_id),
+                    "id": order["order_id"],
+                    "address": order["address"],
+                    "customer_name": user_map.get(order["customer_id"], order["customer_id"]),
                     "products": [
                         {
-                            "name": item.product_name,
-                            "quantity": item.quantity,
-                            "price": item.unit_price
+                            "name": product["name"],
+                            "quantity": product["quantity"],
+                            "price": product["unit_price"],
+                            "subtotal": product["subtotal"],
+                            "details": product["details"]
                         }
-                        for item in order.items
+                        for product in order["products"]
                     ],
-                    "created_at": order.created_at.isoformat(),
-                    "updated_at": order.updated_at.isoformat(),
-                    "state": order.status
+                    "created_at": order["created_at"],
+                    "updated_at": order["updated_at"],
+                    "state": order["status"]
                 }
-                for order in orders
+                for order in orders_data
             ]
         }
     except Exception as e:
+        logger.error(f"Error al obtener órdenes por fecha: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/today", response_model=Dict[str, Any])

@@ -63,8 +63,8 @@ from schemas import (
 from utils import (
     dump_messages,
     prepare_messages,
+    current_colombian_time,
 )
-from datetime import datetime
 
 class LangGraphAgent:
     """Manages the LangGraph Agent/workflow and interactions with the LLM.
@@ -349,7 +349,7 @@ class LangGraphAgent:
                             if tool_call["name"] == "confirm_product":
                                 print("\033[93mPedido creado, detectando intención del usuario\033[0m")
                                 # Preparar el prompt para el LLM
-                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                current_time = current_colombian_time()
                                 formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
                                     agent_name="Orchestrator",
                                     last_order_info=last_order_info,
@@ -420,7 +420,7 @@ class LangGraphAgent:
                             if tool_call["name"] == "add_products_to_order":
                                 print("\033[93mProductos añadidos a la orden, detectando intención del usuario\033[0m")
                                 # Preparar el prompt para el LLM
-                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                current_time = current_colombian_time()
                                 formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
                                     agent_name="Orchestrator",
                                     last_order_info=last_order_info,
@@ -482,7 +482,7 @@ class LangGraphAgent:
                 return state
 
         # Preparar el prompt para el LLM con la información de la orden
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = current_colombian_time()
         formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
             agent_name="Orchestrator",
             last_order_info=last_order_info,
@@ -566,7 +566,7 @@ class LangGraphAgent:
                 print(f"\033[93mError al obtener detalles del usuario: {str(e)}\033[0m")
 
         # Formatear el prompt con el nombre del cliente y la fecha actual
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = current_colombian_time()
         formatted_prompt = SYSTEM_PROMPT_CONVERSATION.format(
             client_name=client_name or "Cliente",
             current_date_and_time=current_time
@@ -657,7 +657,7 @@ class LangGraphAgent:
                 print(f"\033[93mError al obtener detalles del usuario: {str(e)}\033[0m")
         
         # Formatear el prompt con los datos del cliente y la fecha actual
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = current_colombian_time()
         formatted_prompt = SYSTEM_PROMPT_ORDER_DATA.format(
             client_name=client_name or "Cliente",
             previous_address=previous_address or "No disponible",
@@ -752,7 +752,7 @@ class LangGraphAgent:
                 print(f"\033[93mError al obtener la última orden: {str(e)}\033[0m")
 
         # Preparar el prompt con la información de la orden
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = current_colombian_time()
         formatted_prompt = SYSTEM_PROMPT_UPDATE_ORDER.format(
             client_name=client_name or "Cliente",
             last_order_info=last_order_info,
