@@ -34,6 +34,7 @@ ENV/
 .env
 .env.*
 !.env.example
+.venv
 
 # Logs
 logs/
