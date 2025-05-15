@@ -46,6 +46,11 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 function normalizeStatus(status: string): string {
   const lowerStatus = status.toLowerCase();
   
+  // Mapeo de estados en inglés a español
+  if (lowerStatus === "pending") return OrderState.PENDING;
+  if (lowerStatus === "preparing") return OrderState.PREPARING;
+  if (lowerStatus === "completed") return OrderState.COMPLETED;
+  
   // Mapeo de estados en español a las constantes OrderState
   if (lowerStatus === "pendiente") return OrderState.PENDING;
   if (lowerStatus === "en preparación") return OrderState.PREPARING;

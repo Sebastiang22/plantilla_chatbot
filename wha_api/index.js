@@ -159,7 +159,6 @@ async function connectToWhatsApp() {
 
 /**
  * Endpoint para enviar mensaje de texto vía WhatsApp
- * (Este endpoint se conserva para otros usos, pero el envío de PDF se maneja vía socket)
  */
 app.post('/api/send-message', async (req, res) => {
     try {

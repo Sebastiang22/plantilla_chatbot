@@ -5,11 +5,16 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from models.user import User
-from sqlmodel import select
+from models.order import Order
+from sqlmodel import select, Session
 from uuid import UUID
 import logging
+import httpx
+import asyncio
 
 from services.order_service import order_service
+from services.database import database_service
+from core.config import settings
 
 router = APIRouter(tags=["orders"])
 
@@ -29,6 +34,38 @@ class OrderResponse(BaseModel):
     created_at: str
     updated_at: str
     state: str
+
+# URL del API de WhatsApp (configurado en settings o hardcoded por ahora)
+WHATSAPP_API_URL = "http://localhost:3001/api/send-message"
+
+async def send_whatsapp_notification(phone: str, message: str) -> bool:
+    """Envía una notificación por WhatsApp al usuario.
+    
+    Args:
+        phone: Número de teléfono del usuario (sin el prefijo @s.whatsapp.net)
+        message: Mensaje a enviar
+        
+    Returns:
+        bool: True si se envió correctamente, False en caso contrario
+    """
+    try:
+        logger.info(f"Enviando notificación WhatsApp a {phone}: {message}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                WHATSAPP_API_URL,
+                json={"number": phone, "message": message}
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Notificación WhatsApp enviada exitosamente a {phone}")
+                return True
+            else:
+                logger.error(f"Error al enviar notificación WhatsApp: {response.text}")
+                return False
+    except Exception as e:
+        logger.error(f"Excepción al enviar notificación WhatsApp: {str(e)}")
+        return False
 
 @router.get("/by-date", response_model=Dict[str, Any])
 async def get_orders_by_date(
@@ -212,18 +249,57 @@ async def update_order_state(status_update: OrderStatusUpdate):
                 detail=f"Estado inválido. Estados permitidos: {', '.join(valid_states)}"
             )
 
+        # Obtener primero los datos de la orden para tener el número de teléfono
+        with Session(order_service.db.engine) as session:
+            order_before_update = session.get(Order, order_uuid)
+            if not order_before_update:
+                raise HTTPException(status_code=404, detail="Orden no encontrada")
+            
+            # Guardamos el customer_id (teléfono) y el estado anterior
+            customer_phone = order_before_update.customer_id
+            previous_state = order_before_update.status
+
         # Intentar actualizar el estado
         try:
             order = await order_service.update_order_status(order_uuid, status_update.state)
+            
+            # Obtener el nombre del cliente para personalizar el mensaje
+            user_details = await database_service.get_user_details_with_latest_order(customer_phone)
+            client_name = user_details.get("name") if user_details else "Cliente"
+            
+            # Crear mensaje según el nuevo estado
+            status_name = order.status
+            
+            # Mapeo de estados a mensajes amigables
+            status_messages = {
+                "pendiente": f"¡Hola {client_name}! 👋 Tu pedido ha sido recibido y está pendiente de preparación. Te notificaremos cuando comience a prepararse.",
+                "preparando": f"¡Buenas noticias {client_name}! 👨‍🍳 Tu pedido ya está en preparación. Pronto estará listo para entrega.",
+                "en preparación": f"¡Buenas noticias {client_name}! 👨‍🍳 Tu pedido ya está en preparación. Pronto estará listo para entrega.",
+                "completado": f"¡Hola {client_name}! 🎉 Tu pedido ha sido completado y está en camino. ¡Buen provecho! Gracias por preferirnos."
+            }
+            
+            # Mensaje por defecto si no está en el mapeo
+            notification_message = status_messages.get(
+                status_name.lower(), 
+                f"Hola {client_name}, el estado de tu pedido ha sido actualizado a: {status_name}"
+            )
+            
+            # Solo enviar notificación si el estado cambió
+            if previous_state.lower() != status_name.lower():
+                # Enviar notificación WhatsApp en segundo plano
+                asyncio.create_task(send_whatsapp_notification(customer_phone, notification_message))
+            
             logger.info(
                 f"Estado de orden actualizado exitosamente: {str(order.id)} - Nuevo estado: {order.status}"
             )
+            
             return {
                 "message": "Estado actualizado correctamente",
                 "order": {
                     "id": str(order.id),
                     "state": order.status,
-                    "updated_at": order.updated_at.isoformat()
+                    "updated_at": order.updated_at.isoformat(),
+                    "notification_sent": previous_state.lower() != status_name.lower()
                 }
             }
         except HTTPException as he:
