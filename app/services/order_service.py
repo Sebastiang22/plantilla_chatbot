@@ -344,7 +344,7 @@ class OrderService:
             statement = select(Order).options(selectinload(Order.items)).order_by(Order.created_at.desc())
             return session.exec(statement).all()
 
-    async def get_orders_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Order]:
+    async def get_orders_by_date_range(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
         """Obtiene todos los pedidos en un rango de fechas específico.
         
         Args:
@@ -352,15 +352,42 @@ class OrderService:
             end_date: Fecha final
             
         Returns:
-            List[Order]: Lista de pedidos en el rango de fechas
+            List[Dict[str, Any]]: Lista de diccionarios con información detallada de cada pedido
         """
+        orders_data = []
+        
         with Session(self.db.engine) as session:
             statement = select(Order).options(selectinload(Order.items)).where(
                 Order.created_at >= start_date,
                 Order.created_at <= end_date
             ).order_by(Order.created_at.desc())
             
-            return session.exec(statement).all()
+            orders = session.exec(statement).all()
+            
+            for order in orders:
+                # Crear el diccionario de respuesta para cada orden
+                order_data = {
+                    "order_id": str(order.id),
+                    "customer_id": order.customer_id,
+                    "status": order.status,
+                    "total_amount": order.total_amount,
+                    "address": order.address,
+                    "created_at": order.created_at.isoformat(),
+                    "updated_at": order.updated_at.isoformat(),
+                    "products": [
+                        {
+                            "name": item.product_name,
+                            "quantity": item.quantity,
+                            "unit_price": item.unit_price,
+                            "subtotal": item.subtotal,
+                            "details": item.details
+                        }
+                        for item in order.items
+                    ]
+                }
+                orders_data.append(order_data)
+            
+            return orders_data
 
     async def update_order_product(self, order_id: UUID, product_name: str, new_data: Dict[str, Any]) -> Dict[str, Any]:
         """Modifica los datos de un producto específico en una orden.
