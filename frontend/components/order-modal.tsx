@@ -184,10 +184,10 @@ export function OrderModal({ order, open, onOpenChange, onStatusUpdate, onDelete
                         <div className="font-medium">{formatCOP(product.price * product.quantity)}</div>
                       </div>
 
-                      {product.observations && (
+                      {product.details && (
                         <div className="mt-2 p-2 bg-muted rounded-md text-sm flex items-start gap-2">
                           <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                          <span>{product.observations}</span>
+                          <span>{product.details}</span>
                         </div>
                       )}
                     </div>
