@@ -385,7 +385,7 @@ class LangGraphAgent:
                                     # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
                                     if not intent:
                                         # Buscar uno de los nodos válidos en el texto
-                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent", "send_menu"]
                                         for node in valid_nodes:
                                             if node in content:
                                                 intent = node
@@ -406,6 +406,60 @@ class LangGraphAgent:
                                 state.node_history.append("conversation_agent")
                                 return state
                 print("\033[93mRedirigiendo a order_data_agent por ser el último nodo visitado\033[0m")
+                
+                # Añadir detección de intención para ver si quiere el menú
+                current_time = current_colombian_time()
+                formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
+                    agent_name="Orchestrator",
+                    last_order_info=last_order_info,
+                    current_date_and_time=current_time
+                )
+                
+                # Limitar mensajes a los últimos 10
+                recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+                messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
+
+                # Invocar el modelo para obtener la intención
+                response = await self.llm.ainvoke(dump_messages(messages))
+                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+                
+                try:
+                    # Obtener el contenido de la respuesta
+                    content = response.content.strip()
+                    
+                    # Intentar extraer el nodo de diferentes formatos posibles
+                    intent = None
+                    
+                    # Si es un JSON string, intentar parsearlo
+                    if content.startswith('{') or content.startswith('```json'):
+                        import json
+                        # Limpiar el string de markdown si es necesario
+                        json_str = content.replace('```json', '').replace('```', '').strip()
+                        try:
+                            parsed = json.loads(json_str)
+                            # Intentar obtener el nodo de diferentes claves posibles
+                            intent = parsed.get('node') or parsed.get('intention') or parsed.get('response')
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
+                    if not intent:
+                        # Buscar uno de los nodos válidos en el texto
+                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent", "send_menu"]
+                        for node in valid_nodes:
+                            if node in content:
+                                intent = node
+                                break
+                    
+                    # Si la intención es ver el menú, redirigir a conversation_agent
+                    if intent == "send_menu":
+                        print("\033[93mUsuario quiere ver el menú, redirigiendo a conversation_agent\033[0m")
+                        state.node_history.append("conversation_agent")
+                        return state
+                except Exception as e:
+                    print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
+                
+                # Si no se detectó intención de menú, seguir con order_data_agent
                 state.node_history.append("order_data_agent")
                 return state
             elif last_node == "update_order_agent":
@@ -456,7 +510,7 @@ class LangGraphAgent:
                                     # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
                                     if not intent:
                                         # Buscar uno de los nodos válidos en el texto
-                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent", "send_menu"]
                                         for node in valid_nodes:
                                             if node in content:
                                                 intent = node
@@ -477,6 +531,60 @@ class LangGraphAgent:
                                 state.node_history.append("conversation_agent")
                                 return state
                 print("\033[93mRedirigiendo a update_order_agent por ser el último nodo visitado\033[0m")
+                
+                # Añadir detección de intención para ver si quiere el menú
+                current_time = current_colombian_time()
+                formatted_prompt = SYSTEM_PROMPT_ORCHESTRATOR.format(
+                    agent_name="Orchestrator",
+                    last_order_info=last_order_info,
+                    current_date_and_time=current_time
+                )
+                
+                # Limitar mensajes a los últimos 10
+                recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages
+                messages = prepare_messages(recent_messages, self.llm, formatted_prompt)
+
+                # Invocar el modelo para obtener la intención
+                response = await self.llm.ainvoke(dump_messages(messages))
+                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+                
+                try:
+                    # Obtener el contenido de la respuesta
+                    content = response.content.strip()
+                    
+                    # Intentar extraer el nodo de diferentes formatos posibles
+                    intent = None
+                    
+                    # Si es un JSON string, intentar parsearlo
+                    if content.startswith('{') or content.startswith('```json'):
+                        import json
+                        # Limpiar el string de markdown si es necesario
+                        json_str = content.replace('```json', '').replace('```', '').strip()
+                        try:
+                            parsed = json.loads(json_str)
+                            # Intentar obtener el nodo de diferentes claves posibles
+                            intent = parsed.get('node') or parsed.get('intention') or parsed.get('response')
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
+                    if not intent:
+                        # Buscar uno de los nodos válidos en el texto
+                        valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent", "send_menu"]
+                        for node in valid_nodes:
+                            if node in content:
+                                intent = node
+                                break
+                    
+                    # Si la intención es ver el menú, redirigir a conversation_agent
+                    if intent == "send_menu":
+                        print("\033[93mUsuario quiere ver el menú, redirigiendo a conversation_agent\033[0m")
+                        state.node_history.append("conversation_agent")
+                        return state
+                except Exception as e:
+                    print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
+                
+                # Si no se detectó intención de menú, seguir con update_order_agent
                 state.node_history.append("update_order_agent")
                 return state
 
@@ -518,7 +626,7 @@ class LangGraphAgent:
             # Si no se pudo obtener el nodo del JSON, intentar extraerlo directamente
             if not intent:
                 # Buscar uno de los nodos válidos en el texto
-                valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent"]
+                valid_nodes = ["order_data_agent", "conversation_agent", "update_order_agent", "pqrs_agent", "send_menu"]
                 for node in valid_nodes:
                     if node in content:
                         intent = node
@@ -541,6 +649,18 @@ class LangGraphAgent:
             if last_order and last_order['status'] == "pending":
                 print("\033[93mCliente tiene una orden pendiente, redirigiendo a update_order_agent\033[0m")
                 intent = "update_order_agent"
+        
+        # Si la intención es ver el menú, redirigir a conversation_agent
+        if intent == "send_menu":
+            print("\033[93mUsuario quiere ver el menú, redirigiendo a conversation_agent\033[0m")
+            
+            # Guardar información especial para que conversation_agent sepa que debe mostrar el menú
+            state.messages.append({
+                "role": "system",
+                "content": "El usuario ha solicitado ver el menú. Por favor, envíale el menú utilizando las herramientas disponibles."
+            })
+            
+            intent = "conversation_agent"
 
         state.node_history.append(intent)
         return state
