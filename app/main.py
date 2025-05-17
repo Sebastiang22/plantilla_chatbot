@@ -1,6 +1,14 @@
 """This file contains the main application entry point."""
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from app/.env.development
+# This should be one of the very first things to run to ensure all modules
+# have access to environment variables when they are imported.
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env.development")
+load_dotenv(dotenv_path=dotenv_path)
+
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import (
@@ -8,7 +16,6 @@ from typing import (
     Dict,
 )
 
-from dotenv import load_dotenv
 from fastapi import (
     FastAPI,
     Request,
@@ -29,9 +36,6 @@ from core.limiter import limiter
 from core.logging import logger
 from services.database import database_service
 from utils.utils import current_colombian_time
-
-# Load environment variables
-load_dotenv()
 
 # Initialize Langfuse
 langfuse = Langfuse(

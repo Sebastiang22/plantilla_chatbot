@@ -1,0 +1,27 @@
+# Ignorar el entorno virtual de Python
+.venv/
+
+# Ignorar la caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar archivos de configuración del editor/IDE
+.vscode/
+.idea/
+
+# Ignorar logs generados en tiempo de ejecución (si no son parte del build)
+logs/
+
+# Ignorar archivos de caché específicos de pip o poetry
+.cache/
+
+# Ignorar cualquier archivo .env local que no sea .env.development (si se usa)
+# .env
+# .env.*.local
+
+# Otros archivos o directorios que no deban incluirse
+*.log
+.DS_Store
+*.swp 

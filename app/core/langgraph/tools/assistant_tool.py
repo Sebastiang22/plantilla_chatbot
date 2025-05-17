@@ -3,8 +3,10 @@ import aiohttp
 import json
 from langchain_core.tools import tool
 from services.menu_service import menu_service
+from core.config import settings
 
-BAILEYS_SERVER_URL = os.getenv("BAILEYS_SERVER_URL", "http://localhost:3001")
+# Usar la URL de Baileys desde la configuración
+# BAILEYS_SERVER_URL = os.getenv("BAILEYS_SERVER_URL", "http://198.244.188.104:3001")
 
 @tool
 async def send_menu_images(phone: str) -> dict:
@@ -47,7 +49,7 @@ async def send_menu_images(phone: str) -> dict:
                 
                 # Enviar la imagen
                 async with session.post(
-                    f"{BAILEYS_SERVER_URL}/api/send-images",
+                    f"{settings.BAILEYS_SERVER_URL}/api/send-images",
                     json=payload,
                     headers={
                         "Content-Type": "application/json"
@@ -97,7 +99,7 @@ def send_location_tool(phone: str) -> str:
 
             # Hacer la solicitud al endpoint para enviar la ubicación
             async with aiohttp.ClientSession() as session:
-                async with session.post(f'{BAILEYS_SERVER_URL}/api/send-location', json=location_data) as response:
+                async with session.post(f'{settings.BAILEYS_SERVER_URL}/api/send-location', json=location_data) as response:
                     if response.status == 200:
                         return "Ubicación del restaurante enviada correctamente."
                     else:

@@ -24,8 +24,8 @@ router = APIRouter(tags=["orders"])
 
 logger = logging.getLogger(__name__)
 
-# URL del API de WhatsApp (configurado en settings o hardcoded por ahora)
-WHATSAPP_API_URL = "http://localhost:3001/api/send-message"
+# URL del API de WhatsApp desde la configuración
+WHATSAPP_API_URL = f"{settings.BAILEYS_SERVER_URL}/api/send-message"
 
 async def send_whatsapp_notification(phone: str, message: str) -> bool:
     """Envía una notificación por WhatsApp al usuario.

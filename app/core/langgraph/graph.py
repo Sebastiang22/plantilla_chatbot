@@ -36,8 +36,7 @@ from core.config import (
     Environment,
     settings,
 )
-from core.langgraph.tools import (get_menu_tool, 
-                                  duckduckgo_search_tool, 
+from core.langgraph.tools import (get_menu_tool,  
                                   tools, 
                                   confirm_product,
                                   get_last_order,
@@ -86,7 +85,7 @@ class LangGraphAgent:
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
         self.agent_tools = {
-            "conversation_agent": [get_menu_tool, duckduckgo_search_tool, get_last_order, send_menu_images, send_location_tool],
+            "conversation_agent": [get_menu_tool, get_last_order, send_menu_images, send_location_tool],
             "order_data_agent": [confirm_product, get_menu_tool],
             "update_order_agent": [add_products_to_order,get_menu_tool,update_order_product],
             "pqrs_agent": [],
