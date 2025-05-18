@@ -8,7 +8,7 @@ export async function DELETE(
     const orderId = params.id;
     
     // Conectar con el backend real
-    const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+    const BACKEND_URL = process.env.BACKEND_URL || "https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io";
     
     const response = await fetch(`${BACKEND_URL}/orders/${orderId}`, {
       method: "DELETE",
