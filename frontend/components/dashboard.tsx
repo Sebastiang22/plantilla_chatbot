@@ -57,7 +57,7 @@ export default function Dashboard() {
   const selectedOrderRef = useRef<string | null>(null)
   const [randomValue, setRandomValue] = useState(0)
 
-  const API_URL = "http://127.0.0.1:8000";
+  const API_URL = "https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io";
 
   // Función para cargar los datos con useCallback para evitar recreaciones innecesarias
   const fetchData = useCallback(async () => {
