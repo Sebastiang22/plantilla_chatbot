@@ -308,7 +308,7 @@ class LangGraphAgent:
         Verifica si el cliente tiene una orden pendiente antes de permitir nuevos pedidos.
         """
         print("\033[92m[orchestrator] Entrando al orquestador\033[0m")
-        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        #print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
 
         # Obtener la última orden del cliente si hay un número de teléfono
         last_order_info = "No hay información de órdenes previas."
@@ -316,7 +316,7 @@ class LangGraphAgent:
             try:
                 order_service = OrderService()
                 last_order = await order_service.get_last_order(state.phone)
-                print(f"\033[96m[last_order]: {last_order}\033[0m")
+                #print(f"\033[96m[last_order]: {last_order}\033[0m")
                 if last_order:
                     product_info = [
                         f"{product['name']} - Cantidad: {product['quantity']} - Precio: ${product['unit_price']} - Subtotal: ${product['subtotal']}"
@@ -361,7 +361,6 @@ class LangGraphAgent:
 
                                 # Invocar el modelo para obtener la intención
                                 response = await self.llm.ainvoke(dump_messages(messages))
-                                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
                                 
                                 try:
                                     # Obtener el contenido de la respuesta
@@ -546,7 +545,7 @@ class LangGraphAgent:
 
                 # Invocar el modelo para obtener la intención
                 response = await self.llm.ainvoke(dump_messages(messages))
-                print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+                #print(f"\033[96m[orchestrator response]: {response}\033[0m")    
                 
                 try:
                     # Obtener el contenido de la respuesta
@@ -602,7 +601,7 @@ class LangGraphAgent:
 
         # Invocar el modelo para obtener la intención
         response = await self.llm.ainvoke(dump_messages(messages))
-        print(f"\033[96m[orchestrator response]: {response}\033[0m")    
+        #print(f"\033[96m[orchestrator response]: {response}\033[0m")    
         
         try:
             # Obtener el contenido de la respuesta
@@ -670,7 +669,7 @@ class LangGraphAgent:
         Agente especializado en conversación general.
         """
         print("\033[92m[conversation_agent] Entrando al agente de conversación\033[0m")
-        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        #print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
 
         # Obtener el nombre del cliente y la dirección del último pedido si están disponibles
         client_name = None
@@ -693,7 +692,7 @@ class LangGraphAgent:
         
         # Mostrar las primeras 200 caracteres del prompt formateado para depuración
         prompt_preview = formatted_prompt[:200] + "..." if len(formatted_prompt) > 200 else formatted_prompt
-        print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
+        #print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
         
         # Verificar explícitamente si el nombre del cliente está en el prompt
         if client_name and client_name in formatted_prompt:
@@ -733,7 +732,7 @@ class LangGraphAgent:
         Agente especializado en obtención de datos de pedido.
         """
         print("\033[92m[order_data_agent] Entrando al agente de datos de pedido\033[0m")
-        print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
+        #print(f"\033[92mHistorial de nodos: {state.node_history}\033[0m")
         
         # Obtener el nombre del cliente y la dirección del último pedido si están disponibles
         client_name = None
@@ -849,7 +848,7 @@ class LangGraphAgent:
             try:
                 order_service = OrderService()
                 last_order = await order_service.get_last_order(state.phone)
-                print(f"\033[96m[last_order]: {last_order}\033[0m")
+                #print(f"\033[96m[last_order]: {last_order}\033[0m")
                 if last_order:
                     product_info = [
                         f"{product['name']} - Cantidad: {product['quantity']} - Precio: ${product['unit_price']} - Subtotal: ${product['subtotal']}"
@@ -880,7 +879,7 @@ class LangGraphAgent:
         
         # Mostrar las primeras 200 caracteres del prompt formateado para depuración
         prompt_preview = formatted_prompt[:200] + "..." if len(formatted_prompt) > 200 else formatted_prompt
-        print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
+        #print(f"\033[95m[Prompt formateado preview]: {prompt_preview}\033[0m")
         
         # Limitar mensajes a los últimos 10
         recent_messages = state.messages[-10:] if len(state.messages) > 10 else state.messages

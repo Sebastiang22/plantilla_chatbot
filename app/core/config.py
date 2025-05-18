@@ -143,7 +143,7 @@ class Settings:
         self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
 
         # Baileys WhatsApp API Settings
-        self.BAILEYS_SERVER_URL = os.getenv("BAILEYS_SERVER_URL", "http://localhost:3001")
+        self.BAILEYS_SERVER_URL = os.getenv("BAILEYS_SERVER_URL")
         
         # Langfuse Configuration
         self.LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")

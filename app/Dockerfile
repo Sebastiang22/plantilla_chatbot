@@ -1,9 +1,13 @@
 # Usar una imagen base de Python oficial
 FROM python:3.11-slim
 
+# Definir argumento para el entorno (puede ser sobreescrito durante la construcción)
+ARG APP_ENV=development
+
 # Establecer variables de entorno para Python
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV APP_ENV ${APP_ENV}
 
 # Establecer el directorio de trabajo en /app
 WORKDIR /app
@@ -21,6 +25,9 @@ COPY requirements.txt .
 
 # Instalar las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar archivos de entorno según el ambiente configurado
+COPY .env.${APP_ENV} ./.env
 
 # Copiar todo el contenido del contexto actual (la carpeta 'app')
 # al directorio de trabajo /app en la imagen

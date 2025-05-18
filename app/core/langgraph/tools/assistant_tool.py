@@ -45,8 +45,9 @@ async def send_menu_images(phone: str) -> dict:
                 }
                 
                 print(f"\nEnviando imagen del menú {menu_image.tipo_menu.value}...")
-                print(f"Payload: {json.dumps(payload, indent=2)}")
-                
+                #print(f"Payload: {json.dumps(payload, indent=2)}")
+                print(f"\033[92m\nURL del servidor Baileys: {settings.BAILEYS_SERVER_URL}\033[0m")
+
                 # Enviar la imagen
                 async with session.post(
                     f"{settings.BAILEYS_SERVER_URL}/api/send-images",
