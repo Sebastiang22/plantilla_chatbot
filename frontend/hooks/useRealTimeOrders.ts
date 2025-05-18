@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Order } from '@/components/order-list';
+import { API_URL } from '@/lib/config';
 
 interface UseRealTimeOrdersProps {
   onOrderDeleted?: (orderId: string) => void;
@@ -60,7 +61,7 @@ export function useRealTimeOrders({
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/orders');
+      const response = await fetch(`${API_URL}/api/orders`);
       if (!response.ok) {
         throw new Error(`Error al obtener órdenes: ${response.statusText}`);
       }

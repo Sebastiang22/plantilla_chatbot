@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { API_URL } from "@/lib/config";
 
 export async function DELETE(
   request: NextRequest,
@@ -7,10 +8,8 @@ export async function DELETE(
   try {
     const orderId = params.id;
     
-    // Conectar con el backend real
-    const BACKEND_URL = process.env.BACKEND_URL || "https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io";
-    
-    const response = await fetch(`${BACKEND_URL}/orders/${orderId}`, {
+    // Conectar con el backend real usando la URL centralizada
+    const response = await fetch(`${API_URL}/orders/${orderId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
