@@ -21,6 +21,9 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  env: {
+    NEXT_PUBLIC_BACKEND_URL: 'https://wonderful-water-06824e60f.6.azurestaticapps.net'
+  },
 }
 
 mergeConfig(nextConfig, userConfig)

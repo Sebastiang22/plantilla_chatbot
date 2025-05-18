@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { MoonIcon, SunIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useToast } from "@/components/ui/use-toast"
+import { API_URL, buildApiUrl } from "@/lib/config"
 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -56,8 +57,6 @@ export default function Dashboard() {
   const [pendingDeleteOrderId, setPendingDeleteOrderId] = useState<string | null>(null)
   const selectedOrderRef = useRef<string | null>(null)
   const [randomValue, setRandomValue] = useState(0)
-
-  const API_URL = "http://127.0.0.1:8000";
 
   // Función para cargar los datos con useCallback para evitar recreaciones innecesarias
   const fetchData = useCallback(async () => {

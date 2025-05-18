@@ -5,7 +5,7 @@
 // Configuración del backend
 export const backendConfig = {
   // URL base del API, tomada de variables de entorno o valor por defecto
-  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000',
+  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://wonderful-water-06824e60f.6.azurestaticapps.net',
   
   // Endpoints del API
   endpoints: {
@@ -36,6 +36,9 @@ export const backendConfig = {
     serverStatus: 3000
   }
 } as const;
+
+// Exportar la URL del backend como constante para uso general
+export const API_URL = backendConfig.baseUrl;
 
 /**
  * Construye una URL para el API utilizando la URL base configurada
