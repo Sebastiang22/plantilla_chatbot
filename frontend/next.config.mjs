@@ -15,6 +15,19 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    domains: ['wonderful-water-06824e60f.6.azurestaticapps.net', 'localhost'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'wonderful-water-06824e60f.6.azurestaticapps.net',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io',
+        pathname: '/**',
+      },
+    ],
   },
   experimental: {
     webpackBuildWorker: true,
@@ -24,6 +37,9 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BACKEND_URL: 'https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io'
   },
+  // Asegurarse de que la aplicación se sirva desde la raíz
+  basePath: '',
+  trailingSlash: false,
 }
 
 mergeConfig(nextConfig, userConfig)

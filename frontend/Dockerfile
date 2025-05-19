@@ -36,6 +36,10 @@ RUN npm install --production
 ENV NODE_ENV=production
 ENV PATH /app/node_modules/.bin:$PATH
 
+# Asegurarse de que las imágenes estén en la carpeta correcta
+RUN mkdir -p /app/.next/static/media
+RUN cp -r /app/public/* /app/.next/static/media/ || true
+
 # Exponemos el puerto por defecto de Next.js
 EXPOSE 3000
 
