@@ -22,7 +22,7 @@ const nextConfig = {
     parallelServerCompiles: true,
   },
   env: {
-    NEXT_PUBLIC_BACKEND_URL: 'https://wonderful-water-06824e60f.6.azurestaticapps.net'
+    NEXT_PUBLIC_BACKEND_URL: 'https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io'
   },
 }
 
