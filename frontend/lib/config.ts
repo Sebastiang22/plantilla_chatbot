@@ -5,7 +5,7 @@
 // Configuración del backend
 export const backendConfig = {
   // URL base del API, tomada de variables de entorno o valor por defecto
-  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://wonderful-water-06824e60f.6.azurestaticapps.net',
+  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io',
   
   // Endpoints del API
   endpoints: {
