@@ -235,7 +235,7 @@ class OrderService:
             
         Returns:
             Optional[Dict[str, Any]]: Diccionario con la información de la última orden
-                                    o None si no existe ninguna orden
+                                    o None si no existe ninguna orden o si el estado es "completed"
         """
         with Session(self.db.engine) as session:
             # Obtener la última orden del cliente
@@ -246,6 +246,10 @@ class OrderService:
             order = session.exec(statement).first()
             
             if not order:
+                return None
+                
+            # Si el estado es "completed", retornar None como si no hubiera orden
+            if order.status == "completado":
                 return None
             
             # Forzar una recarga de los datos desde la base de datos

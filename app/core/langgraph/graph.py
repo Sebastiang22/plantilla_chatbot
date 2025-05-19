@@ -392,9 +392,31 @@ class LangGraphAgent:
                                     
                                     # Si la intención es order_data_agent o update_order_agent, redirigir a update_order_agent
                                     if intent in ["order_data_agent", "update_order_agent"]:
-                                        print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
-                                        state.node_history.append("update_order_agent")
-                                        return state
+                                        # Verificar si el pedido está en estado pending
+                                        try:
+                                            order_service = OrderService()
+                                            last_order = await order_service.get_last_order(state.phone)
+                                            
+                                            if last_order and last_order['status'] == "pending":
+                                                print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
+                                                state.node_history.append("update_order_agent")
+                                                return state
+                                            else:
+                                                current_status = last_order['status'] if last_order and 'status' in last_order else "no disponible"
+                                                print(f"\033[93mEl pedido no está en estado 'pending', está en estado '{current_status}'. No se puede modificar. Redirigiendo a conversation_agent\033[0m")
+                                                
+                                                # Añadir un mensaje al sistema para informar al usuario
+                                                state.messages.append({
+                                                    "role": "system",
+                                                    "content": f"El pedido ya no se puede modificar porque está en estado {current_status}. Informa al cliente sobre el estado actual sin ofrecer automáticamente ayuda para crear un nuevo pedido. Deja que el cliente decida si quiere hacer un nuevo pedido y te lo solicite explícitamente."
+                                                })
+                                                
+                                                state.node_history.append("conversation_agent")
+                                                return state
+                                        except Exception as e:
+                                            print(f"\033[93mError al verificar el estado del pedido: {str(e)}\033[0m")
+                                            state.node_history.append("conversation_agent")
+                                            return state
                                     else:
                                         print("\033[93mRedirigiendo a conversation_agent\033[0m")
                                         state.node_history.append("conversation_agent")
@@ -517,9 +539,31 @@ class LangGraphAgent:
                                     
                                     # Si la intención es order_data_agent o update_order_agent, redirigir a update_order_agent
                                     if intent in ["order_data_agent", "update_order_agent"]:
-                                        print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
-                                        state.node_history.append("update_order_agent")
-                                        return state
+                                        # Verificar si el pedido está en estado pending
+                                        try:
+                                            order_service = OrderService()
+                                            last_order = await order_service.get_last_order(state.phone)
+                                            
+                                            if last_order and last_order['status'] == "pending":
+                                                print("\033[93mUsuario quiere añadir más productos, redirigiendo a update_order_agent\033[0m")
+                                                state.node_history.append("update_order_agent")
+                                                return state
+                                            else:
+                                                current_status = last_order['status'] if last_order and 'status' in last_order else "no disponible"
+                                                print(f"\033[93mEl pedido no está en estado 'pending', está en estado '{current_status}'. No se puede modificar. Redirigiendo a conversation_agent\033[0m")
+                                                
+                                                # Añadir un mensaje al sistema para informar al usuario
+                                                state.messages.append({
+                                                    "role": "system",
+                                                    "content": f"El pedido ya no se puede modificar porque está en estado {current_status}. Informa al cliente sobre el estado actual sin ofrecer automáticamente ayuda para crear un nuevo pedido. Deja que el cliente decida si quiere hacer un nuevo pedido y te lo solicite explícitamente."
+                                                })
+                                                
+                                                state.node_history.append("conversation_agent")
+                                                return state
+                                        except Exception as e:
+                                            print(f"\033[93mError al verificar el estado del pedido: {str(e)}\033[0m")
+                                            state.node_history.append("conversation_agent")
+                                            return state
                                     else:
                                         print("\033[93mRedirigiendo a conversation_agent\033[0m")
                                         state.node_history.append("conversation_agent")
@@ -584,8 +628,29 @@ class LangGraphAgent:
                     print(f"\033[93mError al procesar la respuesta: {str(e)}\033[0m")
                 
                 # Si no se detectó intención de menú, seguir con update_order_agent
-                state.node_history.append("update_order_agent")
-                return state
+                # Verificar si el pedido está en estado pending antes de redirigir
+                try:
+                    order_service = OrderService()
+                    last_order = await order_service.get_last_order(state.phone)
+                    
+                    if last_order and last_order['status'] == "pending":
+                        state.node_history.append("update_order_agent")
+                        return state
+                    else:
+                        current_status = last_order['status'] if last_order and 'status' in last_order else "no disponible"
+                        print(f"\033[93mEl pedido no está en estado 'pending', está en estado '{current_status}'. No se puede modificar. Redirigiendo a conversation_agent\033[0m")
+                        
+                        # Añadir un mensaje al sistema para informar al usuario
+                        state.messages.append({
+                            "role": "system",
+                            "content": f"El pedido ya no se puede modificar porque está en estado {current_status}. Informa al cliente sobre el estado actual sin ofrecer automáticamente ayuda para crear un nuevo pedido. Deja que el cliente decida si quiere hacer un nuevo pedido y te lo solicite explícitamente."
+                        })
+                        
+                        intent = "conversation_agent"
+                except Exception as e:
+                    print(f"\033[93mError al verificar el estado del pedido: {str(e)}\033[0m")
+                    state.node_history.append("conversation_agent")
+                    return state
 
         # Preparar el prompt para el LLM con la información de la orden
         current_time = current_colombian_time()
@@ -648,6 +713,30 @@ class LangGraphAgent:
             if last_order and last_order['status'] == "pending":
                 print("\033[93mCliente tiene una orden pendiente, redirigiendo a update_order_agent\033[0m")
                 intent = "update_order_agent"
+        
+        # Verificar si la intención es update_order_agent y si el pedido está en estado pending
+        if intent == "update_order_agent" and state.phone:
+            try:
+                order_service = OrderService()
+                last_order = await order_service.get_last_order(state.phone)
+                
+                # Solo permitir update_order_agent si el pedido está en estado pending
+                if not last_order or last_order['status'] != "pending":
+                    current_status = last_order['status'] if last_order and 'status' in last_order else "no disponible"
+                    print(f"\033[93mEl pedido no está en estado 'pending', está en estado '{current_status}'. No se puede modificar. Redirigiendo a conversation_agent\033[0m")
+                    
+                    # Añadir un mensaje al sistema para informar al usuario
+                    state.messages.append({
+                        "role": "system",
+                        "content": f"El pedido ya no se puede modificar porque está en estado {current_status}. Informa al cliente sobre el estado actual sin ofrecer automáticamente ayuda para crear un nuevo pedido. Deja que el cliente decida si quiere hacer un nuevo pedido y te lo solicite explícitamente."
+                    })
+                    
+                    state.node_history.append("conversation_agent")
+                    intent = "conversation_agent"
+            except Exception as e:
+                print(f"\033[93mError al verificar el estado del pedido: {str(e)}\033[0m")
+                # En caso de error, es más seguro redirigir a conversation_agent
+                intent = "conversation_agent"
         
         # Si la intención es ver el menú, redirigir a conversation_agent
         if intent == "send_menu":
