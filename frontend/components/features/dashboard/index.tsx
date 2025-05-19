@@ -195,9 +195,9 @@ export function DashboardClient() {
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            {/* Volvemos a usar una ruta relativa directa */}
+            {/* Corrigiendo la extensión del archivo para que coincida con el real (con mayúsculas) */}
             <Image 
-              src="/juanchito-plaza-logo.png"
+              src="/juanchito-plaza-logo.PNG"
               alt="Juanchito Plaza Logo" 
               width={32}
               height={32}
