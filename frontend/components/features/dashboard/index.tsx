@@ -16,6 +16,7 @@ import { MenuImageModal } from "@/components/menu-image-modal";
 import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter";
 import { DateFilter } from "./orders/date-filter";
 import { StatusBadge } from "@/components/status-badge";
+import Image from "next/image";
 
 // Componente Emoji accesible
 const Emoji = ({ 
@@ -194,11 +195,13 @@ export function DashboardClient() {
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            {/* Reemplazar el emoji por una imagen del logo */}
-            <img 
+            {/* Usando el componente Image de Next.js para optimización */}
+            <Image 
               src="/juanchito-plaza-logo.png" 
               alt="Juanchito Plaza Logo" 
-              className="h-8 w-8"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
             />
             <h1 className="text-lg font-semibold md:text-xl">Juanchito Plaza Dashboard</h1>
           </div>
