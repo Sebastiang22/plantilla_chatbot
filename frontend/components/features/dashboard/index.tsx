@@ -17,8 +17,6 @@ import { useOrdersDateFilter } from "@/hooks/useOrdersDateFilter";
 import { DateFilter } from "./orders/date-filter";
 import { StatusBadge } from "@/components/status-badge";
 import Image from "next/image";
-// Importación directa de la imagen
-import logoImage from "@/public/juanchito-plaza-logo.png";
 
 // Componente Emoji accesible
 const Emoji = ({ 
@@ -197,9 +195,9 @@ export function DashboardClient() {
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            {/* Usando importación directa de la imagen */}
+            {/* Volvemos a usar una ruta relativa directa */}
             <Image 
-              src={logoImage}
+              src="/juanchito-plaza-logo.png"
               alt="Juanchito Plaza Logo" 
               width={32}
               height={32}
