@@ -55,10 +55,27 @@ async function fetchWithTimeout(
   }
 }
 
+// Función para generar un hash simple de los datos
+function generateDataHash(data: any): string {
+  // Convertir los datos a JSON y luego a una cadena hash simple
+  // Esto no es un hash criptográfico completo, pero sirve para comparaciones básicas
+  const jsonStr = JSON.stringify(data);
+  let hash = 0;
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convertir a un entero de 32 bits
+  }
+  return hash.toString();
+}
+
 /**
  * API client con métodos para diferentes operaciones
  */
 export const apiClient = {
+  // Almacenar el hash de los datos más recientes
+  _lastDataHash: '',
+
   /**
    * Obtiene las órdenes del día actual utilizando el endpoint by-date
    */
@@ -75,7 +92,47 @@ export const apiClient = {
     const url = buildApiUrl(`${endpoint}?${params.toString()}`);
     
     const response = await fetchWithTimeout(url);
-    return response.json();
+    const data = await response.json();
+    
+    // Calcular y almacenar el hash de los datos
+    this._lastDataHash = generateDataHash(data);
+    
+    return data;
+  },
+
+  /**
+   * Verifica si hay cambios en los datos sin descargarlos completamente
+   * @returns {Promise<boolean>} true si hay cambios, false si no hay cambios
+   */
+  async checkForChanges(): Promise<boolean> {
+    try {
+      // Si no tenemos un hash previo, definitivamente necesitamos cargar los datos
+      if (!this._lastDataHash) {
+        return true;
+      }
+      
+      // Obtener datos actuales
+      const today = new Date().toISOString().split('T')[0];
+      const params = new URLSearchParams();
+      params.append('start_date', today);
+      params.append('end_date', today);
+      
+      const endpoint = backendConfig.endpoints.orders.byDate;
+      const url = buildApiUrl(`${endpoint}?${params.toString()}`);
+      
+      const response = await fetchWithTimeout(url);
+      const data = await response.json();
+      
+      // Generar hash de los nuevos datos
+      const newHash = generateDataHash(data);
+      
+      // Comparar con el hash anterior
+      return newHash !== this._lastDataHash;
+    } catch (error) {
+      console.error("Error al verificar cambios:", error);
+      // En caso de error, preferimos recargar por seguridad
+      return true;
+    }
   },
   
   /**

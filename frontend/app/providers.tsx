@@ -19,6 +19,7 @@ interface OrdersContextType {
   error: string | null;
   lastUpdated: Date | null;
   refreshOrders: () => Promise<void>;
+  refreshOrdersIfChanged: () => Promise<boolean>;
   updateOrderStatus: (orderId: string, newStatus: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
 }
@@ -31,6 +32,7 @@ const OrdersContext = createContext<OrdersContextType>({
   error: null,
   lastUpdated: null,
   refreshOrders: async () => {},
+  refreshOrdersIfChanged: async () => false,
   updateOrderStatus: async () => {},
   deleteOrder: async () => {},
 });
@@ -64,6 +66,30 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
       setError(err instanceof Error ? err.message : "Error al cargar órdenes");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Verifica si hay cambios en los datos y actualiza solo si es necesario
+   * @returns {Promise<boolean>} true si se actualizaron los datos, false si no había cambios
+   */
+  const refreshOrdersIfChanged = async (): Promise<boolean> => {
+    try {
+      // Verificar si hay cambios en los datos
+      const hasChanges = await apiClient.checkForChanges();
+      
+      if (hasChanges) {
+        // Solo actualizar si hay cambios
+        await refreshOrders();
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.error("Error al verificar cambios:", err);
+      // En caso de error, intentar actualizar de todos modos
+      await refreshOrders();
+      return true;
     }
   };
 
@@ -149,6 +175,7 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
     error,
     lastUpdated,
     refreshOrders,
+    refreshOrdersIfChanged,
     updateOrderStatus,
     deleteOrder,
   };

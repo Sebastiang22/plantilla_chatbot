@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { OrdersList } from "./orders/order-list";
 import { OrderModal } from "./orders/order-modal";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -66,6 +66,7 @@ export function DashboardClient() {
     isLoading, 
     error, 
     refreshOrders, 
+    refreshOrdersIfChanged,
     updateOrderStatus, 
     deleteOrder 
   } = useOrders();
@@ -190,6 +191,36 @@ export function DashboardClient() {
     fetchOrdersByDateRange({ startDate, endDate });
   }, [fetchOrdersByDateRange]);
 
+  // Configurar actualización automática cada 2 minutos
+  useEffect(() => {
+    // Función que actualiza los datos solo si hay cambios
+    const updateData = async () => {
+      const hadChanges = await refreshOrdersIfChanged();
+      
+      // Mostrar notificación si hubo cambios
+      if (hadChanges) {
+        toast({
+          title: "Datos actualizados",
+          description: "Se han detectado y cargado nuevos pedidos",
+          variant: "default",
+        });
+      }
+      
+      // Si hay un filtro de fechas activo, verificar si necesitamos actualizar esos datos también
+      if (hadChanges && (dateRange.startDate || dateRange.endDate)) {
+        fetchOrdersByDateRange(dateRange);
+      }
+    };
+    
+    // Configurar intervalo de 2 minutos (120000 ms)
+    const intervalId = setInterval(updateData, 120000);
+    
+    // Limpiar intervalo cuando el componente se desmonte
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [refreshOrdersIfChanged, fetchOrdersByDateRange, dateRange, toast]);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b bg-background">
@@ -231,9 +262,26 @@ export function DashboardClient() {
               <MenuIcon className="h-4 w-4 mr-2" />
               Cambiar Menú
             </Button>
-            <Button variant="default" onClick={() => {
-              refreshOrders();
-              if (dateRange.startDate || dateRange.endDate) {
+            <Button variant="default" onClick={async () => {
+              const wasUpdated = await refreshOrdersIfChanged();
+              
+              // Mostrar notificación según el resultado
+              if (wasUpdated) {
+                toast({
+                  title: "Datos actualizados",
+                  description: "Se han cargado los pedidos más recientes",
+                  variant: "default",
+                });
+              } else {
+                toast({
+                  title: "Sin cambios",
+                  description: "No hay pedidos nuevos que mostrar",
+                  variant: "default",
+                });
+              }
+              
+              // Si hubo cambios o tenemos un filtro de fecha activo, actualizar los datos filtrados
+              if ((dateRange.startDate || dateRange.endDate) && wasUpdated) {
                 fetchOrdersByDateRange(dateRange);
               }
             }}>

@@ -35,7 +35,7 @@ const nextConfig = {
     parallelServerCompiles: true,
   },
   env: {
-    NEXT_PUBLIC_BACKEND_URL: 'https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io'
+    NEXT_PUBLIC_BACKEND_URL: 'http://127.0.0.1:8000'
   },
   // Asegurarse de que la aplicación se sirva desde la raíz
   basePath: '',
