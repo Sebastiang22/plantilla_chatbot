@@ -101,6 +101,7 @@ def send_location_tool(phone: str) -> str:
             # Hacer la solicitud al endpoint para enviar la ubicación
             async with aiohttp.ClientSession() as session:
                 async with session.post(f'{settings.BAILEYS_SERVER_URL}/api/send-location', json=location_data) as response:
+                    print(f"Respuesta del servidor: {response.status}")
                     if response.status == 200:
                         return "Ubicación del restaurante enviada correctamente."
                     else:
