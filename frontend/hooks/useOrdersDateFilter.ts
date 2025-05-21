@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Order } from '@/lib/types';
 import { buildApiUrl, backendConfig } from '@/lib/config';
+import { utcToZonedTime, format as formatTz } from 'date-fns-tz';
 
 type DateRange = {
   startDate: string | null;
@@ -8,8 +9,11 @@ type DateRange = {
 };
 
 export function useOrdersDateFilter() {
-  // Obtenemos la fecha actual en formato ISO para inicializar con el día actual
-  const today = new Date().toISOString().split('T')[0];
+  // Obtener la fecha actual en la zona horaria de Colombia
+  const timeZone = 'America/Bogota';
+  const now = new Date();
+  const colombiaDate = utcToZonedTime(now, timeZone);
+  const today = formatTz(colombiaDate, 'yyyy-MM-dd', { timeZone });
   
   // Estado para el rango de fechas actual (predeterminado: fecha actual)
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -90,21 +94,21 @@ export function useOrdersDateFilter() {
   const setQuickDateRange = useCallback((days: number) => {
     if (days === 0) {
       // Hoy
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const colombiaDate = utcToZonedTime(now, timeZone);
+      const today = formatTz(colombiaDate, 'yyyy-MM-dd', { timeZone });
       const newRange = { startDate: today, endDate: today };
       setDateRange(newRange);
       fetchOrdersByDateRange(newRange);
     } else if (days > 0) {
       // Últimos X días
-      const end = new Date();
-      const start = new Date();
+      const end = utcToZonedTime(new Date(), timeZone);
+      const start = utcToZonedTime(new Date(), timeZone);
       start.setDate(start.getDate() - days);
-      
       const newRange = {
-        startDate: start.toISOString().split('T')[0],
-        endDate: end.toISOString().split('T')[0]
+        startDate: formatTz(start, 'yyyy-MM-dd', { timeZone }),
+        endDate: formatTz(end, 'yyyy-MM-dd', { timeZone })
       };
-      
       setDateRange(newRange);
       fetchOrdersByDateRange(newRange);
     } else {

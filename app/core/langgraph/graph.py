@@ -162,9 +162,8 @@ class LangGraphAgent:
 
         for attempt in range(max_retries):
             try:
-                import pdb
-                pdb.set_trace()
-                generated_state = {"messages": [await self.llm.ainvoke(dump_messages(   ))]}
+                # Eliminar el punto de interrupción y añadir los mensajes faltantes
+                generated_state = {"messages": [await self.llm.ainvoke(dump_messages(state.messages))]}
                 logger.info(
                     "llm_response_generated",
                     session_id=state.session_id,

@@ -2,6 +2,7 @@
  * Cliente HTTP para comunicación con el backend
  */
 import { backendConfig, buildApiUrl } from '../../config';
+import { utcToZonedTime, format as formatTz } from 'date-fns-tz';
 
 // Tipos de error de la API
 interface ApiError {
@@ -77,60 +78,56 @@ export const apiClient = {
   _lastDataHash: '',
 
   /**
-   * Obtiene las órdenes del día actual utilizando el endpoint by-date
+   * Obtiene las órdenes usando un rango de fechas personalizado
+   * @param {string} startDate - Fecha de inicio en formato YYYY-MM-DD
+   * @param {string} endDate - Fecha de fin en formato YYYY-MM-DD
    */
-  async getOrders() {
-    // Obtenemos la fecha actual en formato ISO
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Construimos la URL con los parámetros
+  async getOrders(startDate?: string, endDate?: string) {
+    // Si no se pasan fechas, usar la fecha actual en la zona horaria de Colombia
+    const timeZone = 'America/Bogota';
+    const now = new Date();
+    const colombiaDate = utcToZonedTime(now, timeZone);
+    const today = formatTz(colombiaDate, 'yyyy-MM-dd', { timeZone });
+    const start = startDate || today;
+    const end = endDate || today;
     const params = new URLSearchParams();
-    params.append('start_date', today);
-    params.append('end_date', today);
-    
+    params.append('start_date', start);
+    params.append('end_date', end);
     const endpoint = backendConfig.endpoints.orders.byDate;
     const url = buildApiUrl(`${endpoint}?${params.toString()}`);
-    
     const response = await fetchWithTimeout(url);
     const data = await response.json();
-    
-    // Calcular y almacenar el hash de los datos
     this._lastDataHash = generateDataHash(data);
-    
     return data;
   },
 
   /**
-   * Verifica si hay cambios en los datos sin descargarlos completamente
-   * @returns {Promise<boolean>} true si hay cambios, false si no hay cambios
+   * Verifica si hay cambios en los datos para un rango de fechas
+   * @param {string} startDate - Fecha de inicio en formato YYYY-MM-DD
+   * @param {string} endDate - Fecha de fin en formato YYYY-MM-DD
    */
-  async checkForChanges(): Promise<boolean> {
+  async checkForChanges(startDate?: string, endDate?: string): Promise<boolean> {
     try {
-      // Si no tenemos un hash previo, definitivamente necesitamos cargar los datos
       if (!this._lastDataHash) {
         return true;
       }
-      
-      // Obtener datos actuales
-      const today = new Date().toISOString().split('T')[0];
+      const timeZone = 'America/Bogota';
+      const now = new Date();
+      const colombiaDate = utcToZonedTime(now, timeZone);
+      const today = formatTz(colombiaDate, 'yyyy-MM-dd', { timeZone });
+      const start = startDate || today;
+      const end = endDate || today;
       const params = new URLSearchParams();
-      params.append('start_date', today);
-      params.append('end_date', today);
-      
+      params.append('start_date', start);
+      params.append('end_date', end);
       const endpoint = backendConfig.endpoints.orders.byDate;
       const url = buildApiUrl(`${endpoint}?${params.toString()}`);
-      
       const response = await fetchWithTimeout(url);
       const data = await response.json();
-      
-      // Generar hash de los nuevos datos
       const newHash = generateDataHash(data);
-      
-      // Comparar con el hash anterior
       return newHash !== this._lastDataHash;
     } catch (error) {
       console.error("Error al verificar cambios:", error);
-      // En caso de error, preferimos recargar por seguridad
       return true;
     }
   },

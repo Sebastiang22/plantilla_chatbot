@@ -18,10 +18,12 @@ interface OrdersContextType {
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
-  refreshOrders: () => Promise<void>;
-  refreshOrdersIfChanged: () => Promise<boolean>;
+  refreshOrders: (startDate?: string, endDate?: string) => Promise<void>;
+  refreshOrdersIfChanged: (startDate?: string, endDate?: string) => Promise<boolean>;
   updateOrderStatus: (orderId: string, newStatus: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
+  dateFilter: {start: string, end: string} | null;
+  setDateFilter: React.Dispatch<React.SetStateAction<{start: string, end: string} | null>>;
 }
 
 // Crear el contexto con valores por defecto
@@ -35,6 +37,8 @@ const OrdersContext = createContext<OrdersContextType>({
   refreshOrdersIfChanged: async () => false,
   updateOrderStatus: async () => {},
   deleteOrder: async () => {},
+  dateFilter: null,
+  setDateFilter: () => {},
 });
 
 // Hook para usar el contexto de órdenes
@@ -50,14 +54,15 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [dateFilter, setDateFilter] = useState<{start: string, end: string} | null>(null);
 
   // Función para cargar órdenes
-  const refreshOrders = async () => {
+  const refreshOrders = async (startDate?: string, endDate?: string) => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const data = await apiClient.getOrders();
+      const data = await apiClient.getOrders(startDate, endDate);
       
       setBackendData(data);
       setLastUpdated(new Date());
@@ -73,22 +78,19 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
    * Verifica si hay cambios en los datos y actualiza solo si es necesario
    * @returns {Promise<boolean>} true si se actualizaron los datos, false si no había cambios
    */
-  const refreshOrdersIfChanged = async (): Promise<boolean> => {
+  const refreshOrdersIfChanged = async (startDate?: string, endDate?: string): Promise<boolean> => {
     try {
-      // Verificar si hay cambios en los datos
-      const hasChanges = await apiClient.checkForChanges();
+      const hasChanges = await apiClient.checkForChanges(startDate, endDate);
       
       if (hasChanges) {
-        // Solo actualizar si hay cambios
-        await refreshOrders();
+        await refreshOrders(startDate, endDate);
         return true;
       }
       
       return false;
     } catch (err) {
       console.error("Error al verificar cambios:", err);
-      // En caso de error, intentar actualizar de todos modos
-      await refreshOrders();
+      await refreshOrders(startDate, endDate);
       return true;
     }
   };
@@ -156,16 +158,15 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
 
   // Inicializar y cargar los datos periódicamente
   useEffect(() => {
-    // Cargar órdenes iniciales
-    refreshOrders();
-    
-    // Eliminamos la actualización periódica para evitar solicitudes cada 30 segundos
-    
-    // No es necesario hacer limpieza ya que no hay intervalo
+    if (dateFilter) {
+      refreshOrders(dateFilter.start, dateFilter.end);
+    } else {
+      refreshOrders();
+    }
     return () => {
       // Función de limpieza vacía
     };
-  }, []);
+  }, [dateFilter]);
 
   // Valor del contexto
   const value = {
@@ -178,6 +179,8 @@ export function OrdersProvider({ children }: OrdersProviderProps) {
     refreshOrdersIfChanged,
     updateOrderStatus,
     deleteOrder,
+    dateFilter,
+    setDateFilter,
   };
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>;
