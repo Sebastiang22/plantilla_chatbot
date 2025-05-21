@@ -109,8 +109,11 @@ export function OrdersList({
       header: "# Pedido",
       cell: ({ row }) => {
         // Obtener el índice de la fila en los datos filtrados
-        const index = table.getFilteredRowModel().rows.findIndex(r => r.id === row.id);
-        return <span className="font-medium">#{index + 1}</span>;
+        const filteredRows = table.getFilteredRowModel().rows;
+        const index = filteredRows.findIndex(r => r.id === row.id);
+        // Invertir el orden: la primera fila será la de mayor número
+        const displayNumber = filteredRows.length - index;
+        return <span className="font-medium">#{displayNumber}</span>;
       },
     },
     {
@@ -292,8 +295,11 @@ export function OrdersList({
               className="h-8 w-8 p-0" 
               onClick={() => {
                 // Obtener el índice de la fila en los datos filtrados
-                const index = table.getFilteredRowModel().rows.findIndex(r => r.id === row.id);
-                onSelectOrder(order, index + 1);
+                const filteredRows = table.getFilteredRowModel().rows;
+                const index = filteredRows.findIndex(r => r.id === row.id);
+                // Calcular el índice invertido igual que en la tabla
+                const displayNumber = filteredRows.length - index;
+                onSelectOrder(order, displayNumber);
               }}
             >
               <span className="sr-only">Ver detalles</span>
