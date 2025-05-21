@@ -54,6 +54,86 @@ function getDisplayNameForOrderState(state: string): string {
   return state.charAt(0).toUpperCase() + state.slice(1);
 }
 
+interface DashboardHeaderProps {
+  showThemeToggle?: boolean;
+  showMenuButton?: boolean;
+  showFilterButton?: boolean;
+  showUpdateButton?: boolean;
+}
+
+/**
+ * Componente de la barra superior del dashboard.
+ * Permite mostrar u ocultar botones según props.
+ */
+export function DashboardHeader({
+  showThemeToggle = true,
+  showMenuButton = true,
+  showFilterButton = true,
+  showUpdateButton = true,
+  setTheme,
+  theme,
+  onDateChange,
+  onMenuClick,
+  onUpdateClick
+}: DashboardHeaderProps & {
+  setTheme?: (theme: string) => void;
+  theme?: string;
+  onDateChange?: (startDate: string | null, endDate: string | null) => void;
+  onMenuClick?: () => void;
+  onUpdateClick?: () => void;
+}) {
+  /**
+   * Header reutilizable para dashboard y login.
+   * Los botones se muestran según los props.
+   */
+  return (
+    <header className="sticky top-0 z-10 border-b bg-background">
+      <div className="container flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-2">
+          <Image 
+            src="/juanchito-plaza-logo.PNG"
+            alt="Juanchito Plaza Logo" 
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain"
+            priority
+          />
+          <h1 className="text-lg font-semibold md:text-xl">Juanchito Plaza</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {showThemeToggle && setTheme && theme && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  {theme === "dark" ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
+                  <span className="sr-only">Cambiar tema</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme("light")}>Claro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>Oscuro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>Sistema</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {showFilterButton && onDateChange && <DateFilter onDateChange={onDateChange} />}
+          {showMenuButton && onMenuClick && (
+            <Button variant="outline" onClick={onMenuClick}>
+              <MenuIcon className="h-4 w-4 mr-2" />
+              Cambiar Menú
+            </Button>
+          )}
+          {showUpdateButton && onUpdateClick && (
+            <Button variant="default" onClick={onUpdateClick}>
+              Actualizar
+            </Button>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
 /**
  * Componente principal del Dashboard
  */
@@ -223,73 +303,31 @@ export function DashboardClient() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            {/* Corrigiendo la extensión del archivo para que coincida con el real (con mayúsculas) */}
-            <Image 
-              src="/juanchito-plaza-logo.PNG"
-              alt="Juanchito Plaza Logo" 
-              width={32}
-              height={32}
-              className="h-8 w-8 object-contain"
-              priority
-            />
-            <h1 className="text-lg font-semibold md:text-xl">Juanchito Plaza Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  {theme === "dark" ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
-                  <span className="sr-only">Cambiar tema</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme("light")}>
-                  Claro
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("dark")}>
-                  Oscuro
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("system")}>
-                  Sistema
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DateFilter onDateChange={handleDateChange} />
-            <Button variant="outline" onClick={() => setIsMenuModalOpen(true)}>
-              <MenuIcon className="h-4 w-4 mr-2" />
-              Cambiar Menú
-            </Button>
-            <Button variant="default" onClick={async () => {
-              const wasUpdated = await refreshOrdersIfChanged();
-              
-              // Mostrar notificación según el resultado
-              if (wasUpdated) {
-                toast({
-                  title: "Datos actualizados",
-                  description: "Se han cargado los pedidos más recientes",
-                  variant: "default",
-                });
-              } else {
-                toast({
-                  title: "Sin cambios",
-                  description: "No hay pedidos nuevos que mostrar",
-                  variant: "default",
-                });
-              }
-              
-              // Si hubo cambios o tenemos un filtro de fecha activo, actualizar los datos filtrados
-              if ((dateRange.startDate || dateRange.endDate) && wasUpdated) {
-                fetchOrdersByDateRange(dateRange);
-              }
-            }}>
-              Actualizar
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        setTheme={setTheme}
+        theme={theme}
+        onDateChange={handleDateChange}
+        onMenuClick={() => setIsMenuModalOpen(true)}
+        onUpdateClick={async () => {
+          const wasUpdated = await refreshOrdersIfChanged();
+          if (wasUpdated) {
+            toast({
+              title: "Datos actualizados",
+              description: "Se han cargado los pedidos más recientes",
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Sin cambios",
+              description: "No hay pedidos nuevos que mostrar",
+              variant: "default",
+            });
+          }
+          if ((dateRange.startDate || dateRange.endDate) && wasUpdated) {
+            fetchOrdersByDateRange(dateRange);
+          }
+        }}
+      />
       <main className="flex-1 overflow-auto p-4">
         <div className="container mx-auto space-y-6">
           {/* Estadísticas - mostrar las filtradas si hay filtro activo */}

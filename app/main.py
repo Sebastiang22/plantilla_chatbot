@@ -31,6 +31,7 @@ from slowapi.errors import RateLimitExceeded
 from api.chatbot import router as chatbot_router
 from api.menu import router as menu_router
 from api.orders import router as orders_router
+from api.auth import router as auth_router
 from core.config import settings
 from core.limiter import limiter
 from core.logging import logger
@@ -119,6 +120,7 @@ app.add_middleware(
 app.include_router(chatbot_router, prefix=f"{settings.API_V1_STR}/chatbot", tags=["chatbot"])
 app.include_router(menu_router, prefix=f"{settings.API_V1_STR}/menu", tags=["menu"])
 app.include_router(orders_router, prefix=f"{settings.API_V1_STR}/orders", tags=["orders"])
+app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 
 
 @app.get("/")

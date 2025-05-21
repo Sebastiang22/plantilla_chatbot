@@ -1,3 +1,11 @@
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno manualmente
+# Subir un nivel desde scripts para encontrar .env.development en la carpeta app
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env.development")
+load_dotenv(dotenv_path=dotenv_path)
+
 from sqlmodel import SQLModel, create_engine
 from core.config import settings
 
@@ -8,6 +16,7 @@ def create_all_tables():
     """
     Crea todas las tablas definidas en los modelos de la base de datos.
     """
+    print("POSTGRES_URL:", settings.POSTGRES_URL)
     engine = create_engine(settings.POSTGRES_URL)
     SQLModel.metadata.create_all(engine)
     print("Todas las tablas han sido creadas correctamente.")
