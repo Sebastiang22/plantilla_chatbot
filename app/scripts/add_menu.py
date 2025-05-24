@@ -137,3 +137,4 @@ def add_products_to_db():
 
 if __name__ == "__main__":
     add_products_to_db()
+
