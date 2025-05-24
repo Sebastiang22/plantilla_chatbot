@@ -1,9 +1,14 @@
 import os
+import sys
 from dotenv import load_dotenv
+
+# Agregar el directorio raíz de la aplicación al PYTHONPATH
+app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(app_dir)
 
 # Cargar variables de entorno manualmente
 # Subir un nivel desde scripts para encontrar .env.development en la carpeta app
-dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env.development")
+dotenv_path = os.path.join(app_dir, ".env.development")
 load_dotenv(dotenv_path=dotenv_path)
 
 from sqlmodel import SQLModel, create_engine

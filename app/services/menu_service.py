@@ -75,21 +75,23 @@ class MenuService:
             print(f"Error al obtener menú: {str(e)}")
             return []
 
-    async def process_menu_data(self, menu_data: Dict) -> bool:
+    async def process_menu_data(self, menu_data: Dict, tipo_menu: MenuType) -> bool:
         """
         Procesa los datos del menú y los guarda en la tabla de productos.
-        Primero elimina todos los productos existentes con categoría 'Menú Ejecutivo'.
+        Elimina los productos existentes del tipo de menú especificado antes de insertar los nuevos.
 
         Args:
             menu_data (Dict): Datos del menú extraídos por OpenAI
+            tipo_menu (MenuType): Tipo de menú (carta o ejecutivo)
 
         Returns:
             bool: True si la operación fue exitosa, False en caso contrario
         """
         try:
             with Session(self.db.engine) as session:
-                # Eliminar productos existentes con categoría 'Menú Ejecutivo'
-                stmt = delete(Product).where(Product.category == 'Menú Ejecutivo')
+                # Eliminar productos existentes del tipo de menú especificado
+                category_to_delete = f"Menú {tipo_menu.value}"
+                stmt = delete(Product).where(Product.category == category_to_delete)
                 session.execute(stmt)
 
                 # Obtener la lista de menús
@@ -116,7 +118,7 @@ class MenuService:
                             name=name,
                             description=description,
                             price=float(price),
-                            category=category,
+                            category=category_to_delete,  # Usar la categoría basada en el tipo de menú
                             stock=100,  # Stock por defecto
                             is_available=True
                         )

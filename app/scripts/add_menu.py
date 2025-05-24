@@ -1,3 +1,10 @@
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno antes de cualquier otro import
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env.development")
+load_dotenv(dotenv_path=dotenv_path)
+
 from sqlmodel import SQLModel, create_engine, Session, select
 from models.product import Product
 from core.config import settings
@@ -7,38 +14,6 @@ def add_products_to_db():
     Agrega los productos definidos a la tabla 'product' en la base de datos.
     """
     productos = [
-
-        # Menú a la carta
-        {
-            "name": "Churrasco + chorizo",
-            "description": "300 grs + chorizo, sopa o crema del día, arroz blanco, jugo, ensalada natural",
-            "price": 42000,
-            "category": "a la carta"
-        },
-        {
-            "name": "Salmón chileno",
-            "description": "200 grs, ensalada natural, jugo, arroz blanco, sopa o crema del día, tostón",
-            "price": 42000,
-            "category": "a la carta"
-        },
-        {
-            "name": "Punta de anca de cerdo",
-            "description": "300 grs, arroz, ensalada natural, jugo, tostón, sopa o crema",
-            "price": 30000,
-            "category": "a la carta"
-        },
-        {
-            "name": "Mojarra frita",
-            "description": "300 grs, arroz blanco, sopa o crema del día, jugo, arroz, ensalada del día",
-            "price": 32000,
-            "category": "a la carta"
-        },
-        {
-            "name": "Filete de trucha",
-            "description": "Ensalada natural, arroz, sopa o crema del día, jugo, acompañante",
-            "price": 20000,
-            "category": "a la carta"
-        },
         
         # Menú de bebidas
         {
@@ -48,35 +23,12 @@ def add_products_to_db():
             "category": "bebida"
         },
         {
-            "name": "Hatsu Green Tea & Kiwi",
-            "description": "Té verde con kiwi",
+            "name": "Hatsu",
+            "description": "Té hatsu",
             "price": 7000,
             "category": "bebida"
         },
-        {
-            "name": "Hatsu Roses Tea & Lychee",
-            "description": "Té de rosas con lichi",
-            "price": 7000,
-            "category": "bebida"
-        },
-        {
-            "name": "Hatsu White Tea & Mangosteen",
-            "description": "Té blanco con mangostán",
-            "price": 7000,
-            "category": "bebida"
-        },
-        {
-            "name": "Hatsu Blue Pomegranate Tea & Açai",
-            "description": "Té de granada azul con açai",
-            "price": 7000,
-            "category": "bebida"
-        },
-        {
-            "name": "Hatsu Pu-Erh Red Tea",
-            "description": "Mezcla de tés rojos con frutos rojos",
-            "price": 7000,
-            "category": "bebida"
-        },
+
         {
             "name": "Red Bull lata",
             "description": "Energizante Red Bull en lata",
@@ -141,6 +93,24 @@ def add_products_to_db():
             "name": "Gatorade",
             "description": "Bebida Gatorade",
             "price": 5000,
+            "category": "bebida"
+        },
+        {
+            "name": "Postobon Uva 400ml",
+            "description": "Gaseosa Postobon sabor Uva en botella PET 400ml",
+            "price": 3000,
+            "category": "bebida"
+        },
+        {
+            "name": "Postobon Naranja 400ml",
+            "description": "Gaseosa Postobon sabor Naranja en botella PET 400ml",
+            "price": 3000,
+            "category": "bebida"
+        },
+        {
+            "name": "Postobon Colombiana 400ml",
+            "description": "Gaseosa Postobon sabor Colombiana en botella PET 400ml",
+            "price": 3000,
             "category": "bebida"
         }
     ]
