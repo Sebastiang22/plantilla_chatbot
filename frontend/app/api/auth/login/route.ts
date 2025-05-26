@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Enviar petición al backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`, {
+    const response = await fetch(`https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io/api/v1/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

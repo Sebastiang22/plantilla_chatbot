@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    
     const token = authHeader.split(' ')[1];
     
     // Verificar el token con el backend
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
+    const response = await fetch(`https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io/api/v1/auth/me`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
