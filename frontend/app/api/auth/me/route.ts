@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    
     const token = authHeader.split(' ')[1];
     
     // Verificar el token con el backend
