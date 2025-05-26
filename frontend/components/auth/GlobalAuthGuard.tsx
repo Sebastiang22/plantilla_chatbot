@@ -50,7 +50,7 @@ export default function GlobalAuthGuard({ children }: GlobalAuthGuardProps) {
         }
 
         // Verificar si el token es válido con una llamada al backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
+        const response = await fetch(`https://juanchito-plaza.blueriver-8537145c.westus2.azurecontainerapps.io/api/v1/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
