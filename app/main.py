@@ -2,6 +2,11 @@
 
 import os
 from dotenv import load_dotenv
+import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Load environment variables from app/.env.development
 # This should be one of the very first things to run to ensure all modules
