@@ -52,33 +52,26 @@ def get_environment() -> Environment:
             return Environment.DEVELOPMENT
 
 
-# # Load appropriate .env file based on environment
-# def load_env_file():
-#     """Load environment-specific .env file."""
-#     env = get_environment()
-#     print(f"Loading environment: {env}")
-#     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-#
-#     # Define env files in priority order
-#     env_files = [
-#         os.path.join(base_dir, f".env.{env.value}.local"),
-#         os.path.join(base_dir, f".env.{env.value}"),
-#         os.path.join(base_dir, ".env.local"),
-#         os.path.join(base_dir, ".env"),
-#     ]
-#
-#     # Load the first env file that exists
-#     for env_file in env_files:
-#         if os.path.isfile(env_file):
-#             load_dotenv(dotenv_path=env_file)
-#             print(f"Loaded environment from {env_file}")
-#             return env_file
-#
-#     # Fall back to default if no env file found
-#     return None
-#
-#
-# ENV_FILE = load_env_file()
+# Load appropriate .env file based on environment
+def load_env_file():
+    """
+    Carga el archivo .env correspondiente según el entorno.
+    """
+    env = get_environment()
+    base_dir = Path(__file__).resolve().parent.parent.parent
+    env_files = {
+        "development": base_dir / ".env.development",
+        "production": base_dir / ".env.production",
+        "staging": base_dir / ".env.staging",
+        "test": base_dir / ".env.test",
+    }
+    env_file = env_files.get(env.value, base_dir / ".env.development")
+    if env_file.exists():
+        load_dotenv(dotenv_path=env_file)
+
+
+# Llamar a la función para cargar el archivo de entorno adecuado
+load_env_file()
 
 
 # Parse list values from environment variables

@@ -1,8 +1,8 @@
 # Usar una imagen base de Python oficial
 FROM python:3.11-slim
 
-# Definir argumento para el entorno (puede ser sobreescrito durante la construcción)
-ARG APP_ENV=development
+# Definir argumento para el entorno (por defecto production)
+ARG APP_ENV=production
 
 # Establecer variables de entorno para Python
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -20,23 +20,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar el archivo de requisitos (desde el contexto actual, es decir, la carpeta 'app')
+# Copiar el archivo de requisitos
 COPY requirements.txt .
 
 # Instalar las dependencias de Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar archivos de entorno según el ambiente configurado
-COPY .env.${APP_ENV} ./.env
+# Copiar siempre el archivo de entorno de producción
+COPY .env.production .env
 
-# Copiar todo el contenido del contexto actual (la carpeta 'app')
-# al directorio de trabajo /app en la imagen
+# Copiar todo el contenido del contexto actual
 COPY . .
 
 # Exponer el puerto en el que la aplicación se ejecutará
 EXPOSE 8000
 
-# Comando para ejecutar la aplicación Uvicorn
-# main:app se refiere al objeto 'app' en el archivo 'main.py'
-# que ahora está en la raíz del WORKDIR /app
+# Comando para ejecutar la aplicación Uvicorn en modo producción
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
