@@ -74,7 +74,7 @@ propcache==0.3.1
 psycopg==3.2.7
 psycopg-binary==3.2.7
 psycopg-pool==3.2.6
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 pyasn1==0.4.8
 pycodestyle==2.13.0
 pycparser==2.22
