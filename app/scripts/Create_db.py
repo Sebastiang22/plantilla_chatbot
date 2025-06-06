@@ -18,21 +18,23 @@ if not os.path.exists(dotenv_path):
 load_dotenv(dotenv_path=dotenv_path)
 
 from core.config import settings
-from models import database  # noqa: F401 - Asegura que los modelos se registren
+from models import database  # noqa: F401
 
 def get_db_urls():
     """
-    Retorna dos URLs: original y con sufijo 'develop'
+    Retorna dos URLs: una para la base con sufijo 'prod' y otra con 'dev'
     """
     base_url = settings.POSTGRES_URL
     parsed = urlparse(base_url)
-    dbname = parsed.path.lstrip('/')
-    develop_dbname = f"{dbname}_develop"
+    base_dbname = parsed.path.lstrip('/')
 
-    original_url = base_url
-    develop_url = urlunparse(parsed._replace(path=f"/{develop_dbname}"))
+    prod_dbname = f"{base_dbname}_prod"
+    dev_dbname = f"{base_dbname}_dev"
 
-    return [(dbname, original_url), (develop_dbname, develop_url)]
+    prod_url = urlunparse(parsed._replace(path=f"/{prod_dbname}"))
+    dev_url = urlunparse(parsed._replace(path=f"/{dev_dbname}"))
+
+    return [(prod_dbname, prod_url), (dev_dbname, dev_url)]
 
 def create_database_if_not_exists(dbname: str, postgres_url: str):
     """
@@ -64,7 +66,7 @@ def create_database_if_not_exists(dbname: str, postgres_url: str):
 
 def create_all_tables(db_url: str):
     """
-    Crea tablas en la base de datos correspondiente.
+    Crea las tablas en la base de datos correspondiente.
     """
     print(f"⚙️ Creando tablas en: {db_url}")
     try:
