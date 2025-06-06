@@ -79,3 +79,28 @@ async def chat(
         logger.error("chat_request_failed", thread_id=error_thread_id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/create-thread")
+async def create_thread(phone: str):
+    """Crea un nuevo thread para el usuario especificado por su número de teléfono.
+
+    Args:
+        phone: Número de celular del usuario
+
+    Returns:
+        dict: Diccionario con el thread_id creado
+
+    Raises:
+        HTTPException: Si hay un error al crear el thread
+    """
+    try:
+        # Obtener o crear usuario usando el método del servicio
+        user = await database_service.get_or_create_user(phone)
+        # Crear un nuevo thread_id único
+        thread_id = str(uuid.uuid4())
+        # Crear un nuevo thread para el usuario
+        thread = await database_service.create_thread(thread_id, user.id)
+        return {"thread_id": thread.id}
+    except Exception as e:
+        logger.error("create_thread_failed", phone=phone, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -137,7 +137,7 @@ async function connectToWhatsApp() {
                         ]
                     };
     
-                    const response = await axios.post('http://localhost:8000/api/v1/chatbot/chat', payload, {
+                    const response = await axios.post('http://0.0.0.0:8080/api/v1/chatbot/chat', payload, {
                         params: {
                             phone: remoteJid.split('@')[0]
                         }
